@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VR Consensus Algorithm Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+    /* Visualization container */
+    #visualization {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      overflow: hidden;
+    }
+    /* Node basic style */
+    .node {
+      position: absolute;
+      background-color: #fff;
+      border: 2px solid #888;
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+      width: 100px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    /* Node positions and colors */
+    #client {
+      top: 20px;
+      left: 20px;
+      background-color: #fffacd;
+    }
+    #primary {
+      top: 20px;
+      left: calc(50% - 50px);
+      background-color: #ffe0e0;
+    }
+    #backup1 {
+      bottom: 20px;
+      left: 20%;
+      background-color: #e0ffe0;
+    }
+    #backup2 {
+      bottom: 20px;
+      left: 65%;
+      background-color: #e0e0ff;
+    }
+    /* Annotations */
+    .annotation {
+      font-size: 0.8em;
+      color: #555;
+      margin-top: 5px;
+    }
+    /* Explanation text area */
+    #explanation {
+      margin: 10px;
+      padding: 10px;
+      font-size: 1.1em;
+      background-color: #eef;
+      border-left: 3px solid #77f;
+    }
+    /* Controls styling */
+    #controls {
+      margin: 10px;
+    }
+    #controls > * {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Explanation text area -->
+  <div id="explanation">
+    Press "Next" to start the simulation.
+  </div>
+
+  <!-- Visualization container -->
+  <div id="visualization">
+    <div class="node" id="client">
+      Client
+      <div class="annotation">Sends the request</div>
+    </div>
+    <div class="node" id="primary">
+      Primary
+      <div class="annotation">Leader replica</div>
+    </div>
+    <div class="node" id="backup1">
+      Backup1
+      <div class="annotation">Replica</div>
+    </div>
+    <div class="node" id="backup2">
+      Backup2
+      <div class="annotation">Replica</div>
+    </div>
+  </div>
+
+  <!-- Control buttons and scenario selector -->
+  <div id="controls">
+    <button id="resetButton">Reset</button>
+    <button id="backButton">Back</button>
+    <button id="nextButton">Next</button>
+    <label for="scenarioSelect">Scenario:</label>
+    <select id="scenarioSelect">
+      <option value="correct">Correct Request</option>
+      <option value="rejected">Rejected Request</option>
+    </select>
+  </div>
+
+  <script>
+    // ------------------------------ Simulation Steps ------------------------------
+
+    // Steps for the "Correct Request" (successful) scenario.
+    var correctSteps = [
+      {
+        txt: "Step 1: Initialization: VR Consensus begins. Client, Primary, Backup1, and Backup2 are ready.<br><em>Example:</em> Imagine a group of students planning a study session.",
+        action: function() {
+          resetArrows();
+          setupArrowhead();
+        }
+      },
+      {
+        txt: "Step 2: The Client sends a request to the Primary.<br><em>Example:</em> One student texts, 'Let’s study together!'",
+        action: function() {
+          drawArrow("client", "primary", "black");
+        }
+      },
+      {
+        txt: "Step 3: The Primary sends a pre-prepare message to both Backups.<br><em>Example:</em> The leader tells the group, 'I propose we study at the library.'",
+        action: function() {
+          drawArrow("primary", "backup1", "red");
+          drawArrow("primary", "backup2", "red");
+        }
+      },
+      {
+        txt: "Step 4: The Backups reply with agreement to the Primary.<br><em>Example:</em> Both friends respond, 'Sounds good!'",
+        action: function() {
+          drawArrow("backup1", "primary", "blue");
+          drawArrow("backup2", "primary", "blue");
+        }
+      },
+      {
+        txt: "Step 5: The Primary commits the request and sends a confirmation to the Client.<br><em>Example:</em> The leader texts back, 'Study session confirmed!'",
+        action: function() {
+          drawArrow("primary", "client", "green");
+        }
+      }
+    ];
+
+    // Steps for the "Rejected Request" scenario.
+    var rejectedSteps = [
+      {
+        txt: "Step 1: Initialization: VR Consensus begins under pressure. All nodes are ready.<br><em>Example:</em> A bunch of friends meet to plan an event.",
+        action: function() {
+          resetArrows();
+          setupArrowhead();
+        }
+      },
+      {
+        txt: "Step 2: The Client sends a request to the Primary.<br><em>Example:</em> A student texts, 'Let’s study together!'",
+        action: function() {
+          drawArrow("client", "primary", "black");
+        }
+      },
+      {
+        txt: "Step 3: The Primary sends a pre-prepare message to both Backups.<br><em>Example:</em> The leader says, 'How about studying at the library?'",
+        action: function() {
+          drawArrow("primary", "backup1", "red");
+          drawArrow("primary", "backup2", "red");
+        }
+      },
+      {
+        txt: "Step 4: Backup2 rejects the proposal.<br><em>Example:</em> One friend replies, 'I’d rather go to a movie,' objecting to the plan.",
+        action: function() {
+          drawDashedArrow("backup2", "primary", "orange");
+        }
+      },
+      {
+        txt: "Step 5: The Primary notices the rejection and triggers a view change.<br><em>Example:</em> Realizing the objection, the leader decides to step down.",
+        action: function() {
+          drawDashedArrow("primary", "backup2", "orange");
+        }
+      },
+      {
+        txt: "Step 6: A view change occurs: Backup1 becomes the new Primary and re-sends the proposal to Backup2.<br><em>Example:</em> As a new leader, Backup1 suggests, 'Let’s study at the library instead!'",
+        action: function() {
+          // In this new view, Backup1 (new primary) sends message to Backup2
+          drawArrow("backup1", "backup2", "red");
+        }
+      },
+      {
+        txt: "Step 7: The new Primary (Backup1) commits the revised request and responds to the Client.<br><em>Example:</em> The new leader finalizes by texting, 'Study session confirmed!'",
+        action: function() {
+          drawArrow("backup1", "client", "green");
+        }
+      }
+    ];
+
+    // ------------------------------ Helper Functions ------------------------------
+
+    // Remove existing arrows by deleting the SVG overlay.
+    function resetArrows() {
+      var svg = document.getElementById("svgOverlay");
+      if (svg) {
+        svg.parentNode.removeChild(svg);
+      }
+      createSVG();
+    }
+
+    // Create a new SVG overlay within the visualization container.
+    function createSVG() {
+      var svgNS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "500px");
+      svg.setAttribute("id", "svgOverlay");
+      svg.style.position = "absolute";
+      svg.style.top = "0";
+      svg.style.left = "0";
+      document.getElementById("visualization").appendChild(svg);
+    }
+
+    // Get the center (x, y) of an element relative to the visualization container.
+    function getCoordinates(elementId) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      return { 
+        x: rect.left - vizRect.left + rect.width / 2, 
+        y: rect.top - vizRect.top + rect.height / 2 
+      };
+    }
+
+    // Compute the intersection point on the border of a node in the direction of a target point.
+    function getBorderPoint(elementId, towardPoint) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      // Center coordinates relative to the visualization container.
+      var cx = rect.left - vizRect.left + rect.width / 2;
+      var cy = rect.top - vizRect.top + rect.height / 2;
+      var dx = towardPoint.x - cx;
+      var dy = towardPoint.y - cy;
+      if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+      var halfWidth = rect.width / 2;
+      var halfHeight = rect.height / 2;
+      // Scale the vector (dx, dy) to intersect with the rectangle border.
+      var scale = Math.min(halfWidth / Math.abs(dx), halfHeight / Math.abs(dy));
+      return { 
+        x: cx + dx * scale,
+        y: cy + dy * scale
+      };
+    }
+
+    // Draw a solid arrow from one node's border to another's.
+    function drawArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+
+    // Draw a dashed arrow (used to signal rejections or view change messages).
+    function drawDashedArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-dasharray", "5,5");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+
+    // Create an arrowhead marker in the SVG overlay.
+    function setupArrowhead() {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) return;
+      var svgNS = "http://www.w3.org/2000/svg";
+      var defs = document.createElementNS(svgNS, "defs");
+      var marker = document.createElementNS(svgNS, "marker");
+      marker.setAttribute("id", "arrowhead");
+      marker.setAttribute("markerWidth", "10");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "0");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      var polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", "0 0, 10 3.5, 0 7");
+      polygon.setAttribute("fill", "black");
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+    }
+
+    // ------------------------------ Simulation Control ------------------------------
+
+    var currentSteps = correctSteps; // default scenario is the correct one
+    var currentStep = 0;
+
+    // Update the explanation text for the current simulation step.
+    function updateExplanation() {
+      var explanationDiv = document.getElementById("explanation");
+      if (currentStep > 0 && currentStep <= currentSteps.length) {
+        explanationDiv.innerHTML = currentSteps[currentStep - 1].txt;
+      } else {
+        explanationDiv.innerHTML = "Simulation reset. Press Next to start.";
+      }
+    }
+
+    // Rebuild the simulation up to the current step index.
+    function redrawSimulation() {
+      resetArrows();
+      setupArrowhead();
+      for (var i = 0; i < currentStep; i++) {
+        currentSteps[i].action();
+      }
+      updateExplanation();
+    }
+
+    // Advance one simulation step.
+    function nextStep() {
+      if (currentStep < currentSteps.length) {
+        currentSteps[currentStep].action();
+        currentStep++;
+        updateExplanation();
+      } else {
+        document.getElementById("explanation").innerHTML = "End of simulation.";
+      }
+    }
+
+    // ------------------------------ Event Handlers ------------------------------
+
+    document.getElementById("resetButton").onclick = function() {
+      currentStep = 0;
+      updateExplanation();
+      resetArrows();
+      setupArrowhead();
+    };
+
+    document.getElementById("backButton").onclick = function() {
+      if (currentStep > 0) {
+        currentStep--;
+        redrawSimulation();
+      }
+    };
+
+    document.getElementById("nextButton").onclick = function() {
+      nextStep();
+    };
+
+    // Handle changes to the scenario selection.
+    document.getElementById("scenarioSelect").onchange = function() {
+      var val = this.value;
+      currentSteps = (val === "correct") ? correctSteps : rejectedSteps;
+      currentStep = 0;
+      resetArrows();
+      setupArrowhead();
+      updateExplanation();
+    };
+
+    // Initialize the simulation on page load.
+    window.onload = function() {
+      resetArrows();
+      setupArrowhead();
+    };
+  </script>
+</body>
+</html>

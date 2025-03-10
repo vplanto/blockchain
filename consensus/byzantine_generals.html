@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>12-Generals Byzantine Consensus Simulation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    /* Explanation text area */
+    #explanation {
+      margin-bottom: 10px;
+      padding: 10px;
+      font-size: 1.1em;
+      background-color: #eef;
+      border-left: 3px solid #77f;
+    }
+    /* The container for the generals */
+    #visualization {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      height: 500px;
+      margin: 0 auto;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    /* General (node) style */
+    .node {
+      position: absolute;
+      width: 90px;
+      height: 60px;
+      line-height: 1.2em;
+      padding: 5px;
+      text-align: center;
+      border: 2px solid #888;
+      border-radius: 4px;
+      background-color: #fff;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    /* Annotation style, displayed inside each node */
+    .annotation {
+      font-size: 0.75em;
+      color: #555;
+      margin-top: 4px;
+    }
+    /* Controls styling */
+    #controls {
+      margin-top: 10px;
+      text-align: center;
+    }
+    #controls > * {
+      margin-right: 10px;
+      padding: 5px 10px;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <!-- Explanation area -->
+  <div id="explanation">
+    Press "Next" to start the simulation.
+  </div>
+
+  <!-- Visualization container (the generals will be created dynamically) -->
+  <div id="visualization"></div>
+
+  <!-- Control buttons and scenario selector -->
+  <div id="controls">
+    <button id="resetButton">Reset</button>
+    <button id="backButton">Back</button>
+    <button id="nextButton">Next</button>
+    <label for="scenarioSelect">Scenario:</label>
+    <select id="scenarioSelect">
+      <!-- In both scenarios, 2 generals are traitors:
+           In the Loyal scenario, even traitors send "Attack City".
+           In the Traitor scenario, one traitor sends "Attack City" and the other "Do Not Attack City". -->
+      <option value="loyal">Loyal (All say "Attack City")</option>
+      <option value="traitor">Traitor (Conflict exists)</option>
+    </select>
+  </div>
+
+  <script>
+    /***************** Global Variables *****************/
+    const totalGenerals = 12;
+    // We'll designate generals 4 and 9 as traitors.
+    const traitorIds = [4, 9];
+    // These arrays will hold the simulation steps for each scenario.
+    let loyalSteps = [];
+    let traitorSteps = [];
+    let currentSteps = [];
+    let currentStep = 0;
+    
+    // We'll create our nodes dynamically inside #visualization.
+    // We'll also store a list of the general elements.
+    let generals = [];
+    
+    /***************** Initialization: Create Generals *****************/
+    function createGenerals() {
+      const viz = document.getElementById("visualization");
+      viz.innerHTML = ""; // clear previous
+      generals = [];
+      const num = totalGenerals;
+      // Determine the center and radius for a circle layout.
+      const rect = viz.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const radius = Math.min(centerX, centerY) - 70; // leave some padding
+      for (let i = 0; i < num; i++) {
+        const angle = (2 * Math.PI / num) * i - Math.PI / 2;  // start at top
+        const node = document.createElement("div");
+        node.className = "node";
+        // Give each node an id like "general1", "general2", etc.
+        const idNum = i + 1;
+        node.id = "general" + idNum;
+        // Position using polar coordinates.
+        const nodeWidth = 90, nodeHeight = 60;
+        const x = centerX + radius * Math.cos(angle) - nodeWidth / 2;
+        const y = centerY + radius * Math.sin(angle) - nodeHeight / 2;
+        node.style.left = x + "px";
+        node.style.top = y + "px";
+        // Set initial innerHTML with general number.
+        // For traitors, mark their annotation in gray; the simulation steps will update declaration text.
+        if (traitorIds.includes(idNum)) {
+          node.innerHTML = `<strong>General ${idNum}</strong><div class="annotation">Traitor</div>`;
+        } else {
+          node.innerHTML = `<strong>General ${idNum}</strong><div class="annotation">Loyal</div>`;
+        }
+        viz.appendChild(node);
+        generals.push(node);
+      }
+    }
+    
+    /***************** Helper Functions for Arrows *****************/
+    // Returns the center {x,y} of an element relative to the #visualization container.
+    function getCoordinates(elementId) {
+      const element = document.getElementById(elementId);
+      const rect = element.getBoundingClientRect();
+      const vizRect = document.getElementById("visualization").getBoundingClientRect();
+      return { 
+        x: rect.left - vizRect.left + rect.width / 2, 
+        y: rect.top - vizRect.top + rect.height / 2 
+      };
+    }
+    
+    // Given an element and a target point, compute the intersection point on the element's border.
+    function getBorderPoint(elementId, towardPoint) {
+      const element = document.getElementById(elementId);
+      const rect = element.getBoundingClientRect();
+      const vizRect = document.getElementById("visualization").getBoundingClientRect();
+      const cx = rect.left - vizRect.left + rect.width / 2;
+      const cy = rect.top - vizRect.top + rect.height / 2;
+      const dx = towardPoint.x - cx;
+      const dy = towardPoint.y - cy;
+      if(dx === 0 && dy === 0) return { x: cx, y: cy };
+      const halfWidth = rect.width / 2;
+      const halfHeight = rect.height / 2;
+      const scale = Math.min(halfWidth / Math.abs(dx), halfHeight / Math.abs(dy));
+      return {
+        x: cx + dx * scale,
+        y: cy + dy * scale
+      };
+    }
+    
+    // Creates an SVG overlay for drawing arrows.
+    function createSVG() {
+      const viz = document.getElementById("visualization");
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "500px");
+      svg.id = "svgOverlay";
+      svg.style.position = "absolute";
+      svg.style.top = "0";
+      svg.style.left = "0";
+      viz.appendChild(svg);
+    }
+    
+    // Removes the SVG overlay if it exists.
+    function resetArrows() {
+      const svg = document.getElementById("svgOverlay");
+      if (svg) { svg.parentNode.removeChild(svg); }
+      createSVG();
+    }
+    
+    // Draw a solid arrow from one node's border to another's.
+    function drawArrow(fromId, toId, color = "black") {
+      let svg = document.getElementById("svgOverlay");
+      if (!svg) { createSVG(); svg = document.getElementById("svgOverlay"); }
+      const sourceCenter = getCoordinates(fromId);
+      const targetCenter = getCoordinates(toId);
+      const startPoint = getBorderPoint(fromId, targetCenter);
+      const endPoint = getBorderPoint(toId, sourceCenter);
+      const svgNS = "http://www.w3.org/2000/svg";
+      const line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+    
+    // Draw a dashed arrow.
+    function drawDashedArrow(fromId, toId, color = "black") {
+      let svg = document.getElementById("svgOverlay");
+      if (!svg) { createSVG(); svg = document.getElementById("svgOverlay"); }
+      const sourceCenter = getCoordinates(fromId);
+      const targetCenter = getCoordinates(toId);
+      const startPoint = getBorderPoint(fromId, targetCenter);
+      const endPoint = getBorderPoint(toId, sourceCenter);
+      const svgNS = "http://www.w3.org/2000/svg";
+      const line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-dasharray", "5,5");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+    
+    // Create an arrowhead marker.
+    function setupArrowhead() {
+      const svg = document.getElementById("svgOverlay");
+      if (!svg) return;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const defs = document.createElementNS(svgNS, "defs");
+      const marker = document.createElementNS(svgNS, "marker");
+      marker.setAttribute("id", "arrowhead");
+      marker.setAttribute("markerWidth", "10");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "0");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      const polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", "0 0, 10 3.5, 0 7");
+      polygon.setAttribute("fill", "black");
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+    }
+    
+    /***************** Simulation Steps *****************/
+    // We'll define steps as objects with a text explanation (txt) and an action function.
+    
+    // In both scenarios, step 1 is simply initialization.
+    const initStep = {
+      txt: "Step 1: Initialization – 12 generals are present. Among them, 10 are loyal and 2 (generals 4 and 9) are traitors.<br><em>Example:</em> Imagine 12 friends gathered to decide on whether to attack the city.",
+      action: () => {
+        resetArrows();
+        setupArrowhead();
+      }
+    };
+    
+    // Step 2: Declaration of initial orders.
+    // In the loyal scenario: every general (including traitors) declares “Attack City.”
+    // In the traitor scenario: loyal generals say “Attack City”; one traitor (General 4) says “Attack City” and the other (General 9) says “Do Not Attack City.”
+    function declarationStep(isTraitorScenario) {
+      return {
+        txt: isTraitorScenario ?
+          "Step 2: Declaration – Each general broadcasts his proposed order. Loyal generals declare 'Attack City'. However, traitor General 9 sends 'Do Not Attack City' while traitor General 4 sends 'Attack City'.<br><em>Example:</em> Most friends agree to attack the city, but one mischievous friend contradicts the plan." :
+          "Step 2: Declaration – Every general declares 'Attack City'.<br><em>Example:</em> All friends unanimously decide to attack the city.",
+        action: () => {
+          for (let i = 1; i <= totalGenerals; i++) {
+            const gen = document.getElementById("general" + i);
+            // In a loyal scenario, set declared order to "Attack City" for all.
+            if (!isTraitorScenario) {
+              gen.innerHTML = `<strong>General ${i}</strong><div class="annotation">${traitorIds.includes(i) ? "Traitor" : "Loyal"}</div><div style="font-size:0.85em; margin-top:4px;">Attack City</div>`;
+            } else {
+              // In traitor scenario, loyal ones: Attack City; traitors: General4: "Attack City", General9: "Do Not Attack City"
+              if (traitorIds.includes(i)) {
+                if (i === 9) {
+                  gen.innerHTML = `<strong>General ${i}</strong><div class="annotation">Traitor</div><div style="font-size:0.85em; margin-top:4px;">Do Not Attack City</div>`;
+                } else {
+                  // For other traitor (General 4) use Attack City.
+                  gen.innerHTML = `<strong>General ${i}</strong><div class="annotation">Traitor</div><div style="font-size:0.85em; margin-top:4px;">Attack City</div>`;
+                }
+              } else {
+                gen.innerHTML = `<strong>General ${i}</strong><div class="annotation">Loyal</div><div style="font-size:0.85em; margin-top:4px;">Attack City</div>`;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Step 3: Communication – Generals exchange messages. We'll draw a few representative arrows.
+    const communicationStep = {
+      txt: "Step 3: Communication – Generals exchange messages about their orders. They send sample messages to one another so that each loyal general can tally the orders received.<br><em>Example:</em> Some friends call each other to confirm the plan.",
+      action: () => {
+        // Draw a few representative sample arrows between some generals.
+        // For example, from general1 to general2, from general5 to general8, and from general10 to general3.
+        drawArrow("general1", "general2", "gray");
+        drawArrow("general5", "general8", "gray");
+        drawArrow("general10", "general3", "gray");
+        // Also, if in traitor scenario, show a dashed arrow from a general receiving conflicting order.
+        if (document.getElementById("general9").innerHTML.indexOf("Do Not Attack") !== -1) {
+          drawDashedArrow("general9", "general7", "purple");
+        }
+      }
+    };
+    
+    // Step 4: Consensus – After exchanging messages, the loyal generals decide based on the majority.
+    const consensusStep = {
+      txt: "Step 4: Consensus – Each loyal general tallies the received orders. Since the majority of messages say 'Attack City' (from 10 out of 12 generals), they reach consensus on attacking the city.<br><em>Example:</em> In the end, the friends agree to attack the city.",
+      action: () => {
+        // Here we just update the explanation; you might also update the displayed order on each loyal general.
+        // For simplicity, we'll draw one final arrow among a few loyal generals as a symbolic gesture.
+        drawArrow("general2", "general6", "green");
+        drawArrow("general6", "general11", "green");
+      }
+    };
+    
+    // Assemble our simulation steps into arrays for each scenario.
+    loyalSteps = [initStep, declarationStep(false), communicationStep, consensusStep];
+    traitorSteps = [initStep, declarationStep(true), communicationStep, consensusStep];
+    
+    // Set the currentSteps array based on the current scenario selection.
+    function updateScenario() {
+      const scenario = document.getElementById("scenarioSelect").value;
+      if (scenario === "loyal") {
+        currentSteps = loyalSteps;
+      } else {
+        currentSteps = traitorSteps;
+      }
+      currentStep = 0;
+      updateExplanation();
+      resetArrows();
+      setupArrowhead();
+      // Recreate generals to clear any previous state.
+      createGenerals();
+    }
+    
+    /***************** Simulation Control *****************/
+    function updateExplanation() {
+      const explanationDiv = document.getElementById("explanation");
+      if (currentStep > 0 && currentStep <= currentSteps.length) {
+        explanationDiv.innerHTML = currentSteps[currentStep - 1].txt;
+      } else {
+        explanationDiv.innerHTML = "Simulation reset. Press Next to start.";
+      }
+    }
+    
+    function redrawSimulation() {
+      resetArrows();
+      setupArrowhead();
+      // Execute all step actions up to currentStep.
+      for (let i = 0; i < currentStep; i++) {
+        currentSteps[i].action();
+      }
+      updateExplanation();
+    }
+    
+    function nextStep() {
+      if (currentStep < currentSteps.length) {
+        currentSteps[currentStep].action();
+        currentStep++;
+        updateExplanation();
+      } else {
+        document.getElementById("explanation").innerHTML = "End of simulation.";
+      }
+    }
+    
+    /***************** Event Handlers *****************/
+    document.getElementById("resetButton").onclick = function() {
+      currentStep = 0;
+      createGenerals();
+      updateExplanation();
+      resetArrows();
+      setupArrowhead();
+    };
+    
+    document.getElementById("backButton").onclick = function() {
+      if (currentStep > 0) {
+        currentStep--;
+        redrawSimulation();
+      }
+    };
+    
+    document.getElementById("nextButton").onclick = function() {
+      nextStep();
+    };
+    
+    document.getElementById("scenarioSelect").onchange = function() {
+      updateScenario();
+    };
+    
+    // On page load, create generals and initialize simulation.
+    window.onload = function() {
+      createGenerals();
+      updateScenario(); // sets currentSteps and resets simulation
+    };
+  </script>
+</body>
+</html>

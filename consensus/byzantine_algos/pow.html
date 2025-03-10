@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PoW Consensus Algorithm Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+    /* Visualization container */
+    #visualization {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      overflow: hidden;
+    }
+    /* Node styles */
+    .node {
+      position: absolute;
+      background-color: #fff;
+      border: 2px solid #888;
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+      width: 100px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    /* Node positions & colors */
+    #client {
+      top: 20px;
+      left: 20px;
+      background-color: #fffacd;
+    }
+    #miner1 {
+      bottom: 20px;
+      left: 10%;
+      background-color: #e0ffe0;
+    }
+    #miner2 {
+      bottom: 20px;
+      left: calc(50% - 50px);
+      background-color: #e0f7ff;
+    }
+    #miner3 {
+      bottom: 20px;
+      right: 10%;
+      background-color: #f0e0ff;
+    }
+    /* Node annotations */
+    .annotation {
+      font-size: 0.8em;
+      color: #555;
+      margin-top: 5px;
+    }
+    /* Explanation text area */
+    #explanation {
+      margin: 10px;
+      padding: 10px;
+      font-size: 1.1em;
+      background-color: #eef;
+      border-left: 3px solid #77f;
+    }
+    /* Controls styling */
+    #controls {
+      margin: 10px;
+    }
+    #controls > * {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Explanation text area -->
+  <div id="explanation">Press "Next" to start the simulation.</div>
+
+  <!-- Visualization container with nodes -->
+  <div id="visualization">
+    <div class="node" id="client">
+      Client
+      <div class="annotation">Sends transactions</div>
+    </div>
+    <div class="node" id="miner1">
+      Miner1
+      <div class="annotation">Attempts to solve the puzzle</div>
+    </div>
+    <div class="node" id="miner2">
+      Miner2
+      <div class="annotation">Attempts to solve the puzzle</div>
+    </div>
+    <div class="node" id="miner3">
+      Miner3
+      <div class="annotation">Attempts to solve the puzzle</div>
+    </div>
+  </div>
+
+  <!-- Control buttons and scenario selector -->
+  <div id="controls">
+    <button id="resetButton">Reset</button>
+    <button id="backButton">Back</button>
+    <button id="nextButton">Next</button>
+    <label for="scenarioSelect">Scenario:</label>
+    <select id="scenarioSelect">
+      <option value="correct">Correct Operation</option>
+      <option value="forked">Forked Block</option>
+    </select>
+  </div>
+
+  <script>
+    // -------------------- Simulation Steps --------------------
+
+    // "Correct Operation" scenario:
+    var correctSteps = [
+      {
+        txt: "Step 1: Initialization: The PoW network is online. The Client and all Miners are ready.<br><em>Example:</em> Imagine a group of friends set to solve a challenging puzzle.",
+        action: function() {
+          resetArrows();
+          setupArrowhead();
+        }
+      },
+      {
+        txt: "Step 2: The Client sends a transaction to the network.<br><em>Example:</em> A friend sends a message, 'Let's start the puzzle!'",
+        action: function() {
+          drawArrow("client", "miner1", "black");
+          drawArrow("client", "miner2", "black");
+          drawArrow("client", "miner3", "black");
+        }
+      },
+      {
+        txt: "Step 3: All Miners attempt to solve the puzzle. Miner2 solves it first.<br><em>Example:</em> Friends race to solve the puzzle, and Miner2 finishes first.",
+        action: function() {
+          // Miner2 broadcasts its solved block to the other miners.
+          drawArrow("miner2", "miner1", "red");
+          drawArrow("miner2", "miner3", "red");
+        }
+      },
+      {
+        txt: "Step 4: Miner2 broadcasts the valid block to the network, and the Client receives confirmation.<br><em>Example:</em> Miner2 announces, 'I solved it!' and everyone agrees, so the client is notified.",
+        action: function() {
+          drawArrow("miner2", "client", "green");
+        }
+      }
+    ];
+    
+    // "Forked Block" scenario:
+    var forkedSteps = [
+      {
+        txt: "Step 1: Initialization: The PoW network is online. The Client and all Miners are active.<br><em>Example:</em> Friends gather to race in solving a puzzle.",
+        action: function() {
+          resetArrows();
+          setupArrowhead();
+        }
+      },
+      {
+        txt: "Step 2: The Client sends a transaction to the network.<br><em>Example:</em> A message goes out: 'Let's start the puzzle!'",
+        action: function() {
+          drawArrow("client", "miner1", "black");
+          drawArrow("client", "miner2", "black");
+          drawArrow("client", "miner3", "black");
+        }
+      },
+      {
+        txt: "Step 3: Two miners, Miner1 and Miner2, solve the puzzle almost simultaneously, creating competing candidate blocks.<br><em>Example:</em> Two friends claim they solved the puzzle nearly at the same time.",
+        action: function() {
+          drawArrow("miner1", "miner3", "red");
+          drawArrow("miner2", "miner3", "orange");
+        }
+      },
+      {
+        txt: "Step 4: A fork occurs: Miners are divided on which block to accept. After discussion, the network converges on one block.<br><em>Example:</em> After comparing notes, the friends eventually agree on one solution, and the final accepted block is broadcast.",
+        action: function() {
+          drawDashedArrow("miner3", "miner1", "purple");
+          drawDashedArrow("miner3", "miner2", "purple");
+          // Let’s assume the network converges on Miner2's block:
+          drawArrow("miner2", "client", "green");
+        }
+      }
+    ];
+    
+    var currentSteps = correctSteps;
+    var currentStep = 0;
+    
+    // -------------------- Helper Functions --------------------
+    
+    // Remove existing SVG overlay (arrows) and create a new one.
+    function resetArrows() {
+      var svg = document.getElementById("svgOverlay");
+      if (svg) {
+        svg.parentNode.removeChild(svg);
+      }
+      createSVG();
+    }
+    
+    // Creates an SVG overlay within the visualization container.
+    function createSVG() {
+      var svgNS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "500px");
+      svg.setAttribute("id", "svgOverlay");
+      svg.style.position = "absolute";
+      svg.style.top = "0";
+      svg.style.left = "0";
+      document.getElementById("visualization").appendChild(svg);
+    }
+    
+    // Returns the center (x, y) coordinates of an element relative to the visualization container.
+    function getCoordinates(elementId) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      return { 
+        x: rect.left - vizRect.left + rect.width / 2, 
+        y: rect.top - vizRect.top + rect.height / 2 
+      };
+    }
+    
+    // Computes the intersection point on the border of a node in the direction of a target point.
+    function getBorderPoint(elementId, towardPoint) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      var cx = rect.left - vizRect.left + rect.width / 2;
+      var cy = rect.top - vizRect.top + rect.height / 2;
+      var dx = towardPoint.x - cx;
+      var dy = towardPoint.y - cy;
+      if (dx === 0 && dy === 0) return { x: cx, y: cy };
+      var halfWidth = rect.width / 2;
+      var halfHeight = rect.height / 2;
+      var scale = Math.min(halfWidth / Math.abs(dx), halfHeight / Math.abs(dy));
+      return { 
+        x: cx + dx * scale,
+        y: cy + dy * scale
+      };
+    }
+    
+    // Draws a solid arrow from one node's border to another's.
+    function drawArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+    
+    // Draws a dashed arrow (used to indicate uncertainty or conflict).
+    function drawDashedArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-dasharray", "5,5");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+    
+    // Creates an arrowhead marker within the SVG overlay.
+    function setupArrowhead() {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) return;
+      var svgNS = "http://www.w3.org/2000/svg";
+      var defs = document.createElementNS(svgNS, "defs");
+      var marker = document.createElementNS(svgNS, "marker");
+      marker.setAttribute("id", "arrowhead");
+      marker.setAttribute("markerWidth", "10");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "0");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      var polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", "0 0, 10 3.5, 0 7");
+      polygon.setAttribute("fill", "black");
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+    }
+    
+    // -------------------- Simulation Control --------------------
+    
+    var currentSteps = correctSteps;  // Default scenario: Correct Operation
+    var currentStep = 0;
+    
+    // Updates the explanation text based on the current simulation step.
+    function updateExplanation() {
+      var explanationDiv = document.getElementById("explanation");
+      if (currentStep > 0 && currentStep <= currentSteps.length) {
+        explanationDiv.innerHTML = currentSteps[currentStep - 1].txt;
+      } else {
+        explanationDiv.innerHTML = "Simulation reset. Press Next to start.";
+      }
+    }
+    
+    // Rebuilds the simulation from the start up to the current step.
+    function redrawSimulation() {
+      resetArrows();
+      setupArrowhead();
+      for (var i = 0; i < currentStep; i++) {
+        currentSteps[i].action();
+      }
+      updateExplanation();
+    }
+    
+    // Advances one simulation step.
+    function nextStep() {
+      if (currentStep < currentSteps.length) {
+        currentSteps[currentStep].action();
+        currentStep++;
+        updateExplanation();
+      } else {
+        document.getElementById("explanation").innerHTML = "End of simulation.";
+      }
+    }
+    
+    // -------------------- Event Handlers --------------------
+    
+    document.getElementById("resetButton").onclick = function() {
+      currentStep = 0;
+      updateExplanation();
+      resetArrows();
+      setupArrowhead();
+    };
+    
+    document.getElementById("backButton").onclick = function() {
+      if (currentStep > 0) {
+        currentStep--;
+        redrawSimulation();
+      }
+    };
+    
+    document.getElementById("nextButton").onclick = function() {
+      nextStep();
+    };
+    
+    document.getElementById("scenarioSelect").onchange = function() {
+      var val = this.value;
+      currentSteps = (val === "correct") ? correctSteps : forkedSteps;
+      currentStep = 0;
+      resetArrows();
+      setupArrowhead();
+      updateExplanation();
+    };
+    
+    // Initialize simulation on window load.
+    window.onload = function() {
+      resetArrows();
+      setupArrowhead();
+    };
+  </script>
+</body>
+</html>

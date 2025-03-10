@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paxos Algorithm Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+    #visualization {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      overflow: hidden;
+    }
+    .node {
+      position: absolute;
+      background-color: #fff;
+      border: 2px solid #888;
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+      width: 100px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    /* Node positions & background colors */
+    #proposer {
+      top: 50px;
+      left: calc(50% - 50px);
+      background-color: #ffe0e0;
+    }
+    .acceptor {
+      top: 200px;
+      background-color: #e0ffe0;
+    }
+    #acceptor1 {
+      left: 10%;
+    }
+    #acceptor2 {
+      left: 45%;
+    }
+    #acceptor3 {
+      left: 80%;
+    }
+    #learner {
+      top: 350px;
+      left: calc(50% - 50px);
+      background-color: #e0e0ff;
+    }
+    /* Explanation and controls styling */
+    #explanation {
+      margin: 10px;
+      padding: 10px;
+      font-size: 1.1em;
+      background-color: #eef;
+      border-left: 3px solid #77f;
+    }
+    #controls {
+      margin: 10px;
+    }
+    #controls > * {
+      margin-right: 10px;
+    }
+    /* Annotation styling */
+    .annotation {
+      font-size: 0.8em;
+      color: #555;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Explanation text area -->
+  <div id="explanation">
+    Press "Next" to start the simulation.
+  </div>
+
+  <!-- Visualization container -->
+  <div id="visualization">
+    <div class="node" id="proposer">
+      Proposer
+      <div class="annotation">Sends prepare &amp; accept requests</div>
+    </div>
+    <div class="node acceptor" id="acceptor1">
+      Acceptor 1
+      <div class="annotation">Votes on proposals</div>
+    </div>
+    <div class="node acceptor" id="acceptor2">
+      Acceptor 2
+      <div class="annotation">Votes on proposals</div>
+    </div>
+    <div class="node acceptor" id="acceptor3">
+      Acceptor 3
+      <div class="annotation">Votes on proposals</div>
+    </div>
+    <div class="node" id="learner">
+      Learner
+      <div class="annotation">Learns the consensus</div>
+    </div>
+  </div>
+
+  <!-- Control buttons and scenario selector -->
+  <div id="controls">
+    <button id="resetButton">Reset</button>
+    <button id="backButton">Back</button>
+    <button id="nextButton">Next</button>
+    <label for="scenarioSelect">Scenario:</label>
+    <select id="scenarioSelect">
+      <option value="correct">Correct Proposal</option>
+      <option value="rejected">Rejected Proposal</option>
+    </select>
+  </div>
+
+  <script>
+    // ------------------------------ Simulation Steps ------------------------------
+
+    // Steps for the "Correct Proposal" (accepted) scenario.
+    var correctSteps = [
+      {
+        txt: "Step 1: Initialization: Paxos begins. Proposer, Acceptors, and Learner are ready.<br><em>Example:</em> Imagine a group of classmates ready to decide on a class outing.",
+        action: function() { 
+          resetArrows(); 
+          setupArrowhead(); 
+        }
+      },
+      {
+        txt: "Step 2: Phase 1: The Proposer sends a Prepare message to all Acceptors.<br><em>Example:</em> One student says, 'How about a picnic this Friday?' to everyone.",
+        action: function() { 
+          drawArrow("proposer", "acceptor1", "red");
+          drawArrow("proposer", "acceptor2", "red");
+          drawArrow("proposer", "acceptor3", "red");
+        }
+      },
+      {
+        txt: "Step 3: Acceptors respond: They send Promise messages back to the Proposer.<br><em>Example:</em> Every classmate replies, 'That sounds like a plan!'",
+        action: function() {
+          drawArrow("acceptor1", "proposer", "blue");
+          drawArrow("acceptor2", "proposer", "blue");
+          drawArrow("acceptor3", "proposer", "blue");
+        }
+      },
+      {
+        txt: "Step 4: Phase 2: The Proposer sends an Accept Request with the proposal value.<br><em>Example:</em> The student writes, 'Picnic at Riverside Park' on a board to make it official.",
+        action: function() {
+          drawArrow("proposer", "acceptor1", "green");
+          drawArrow("proposer", "acceptor2", "green");
+          drawArrow("proposer", "acceptor3", "green");
+        }
+      },
+      {
+        txt: "Step 5: Acceptors accept the proposal and notify the Learner.<br><em>Example:</em> Classmates agree and pass on their vote to the class monitor.",
+        action: function() {
+          drawArrow("acceptor1", "learner", "purple");
+          drawArrow("acceptor2", "learner", "purple");
+          drawArrow("acceptor3", "learner", "purple");
+        }
+      },
+      {
+        txt: "Step 6: Consensus achieved! The Learner records the agreed value.<br><em>Example:</em> The monitor finally notes, 'Picnic at Riverside Park' as the class outing.",
+        action: function() { }
+      }
+    ];
+
+    // Steps for the "Rejected Proposal" scenario.
+    var rejectedSteps = [
+      {
+        txt: "Step 1: Initialization: Paxos begins for a rejected proposal scenario. Nodes are ready.<br><em>Example:</em> Imagine friends gathering to plan an outing.",
+        action: function() { 
+          resetArrows(); 
+          setupArrowhead(); 
+        }
+      },
+      {
+        txt: "Step 2: Phase 1: The Proposer sends a Prepare message to all Acceptors.<br><em>Example:</em> One friend suggests, 'Let’s go to the new arcade.'",
+        action: function() {
+          drawArrow("proposer", "acceptor1", "red");
+          drawArrow("proposer", "acceptor2", "red");
+          drawArrow("proposer", "acceptor3", "red");
+        }
+      },
+      {
+        txt: "Step 3: An Acceptor rejects the proposal because it has already promised a higher proposal number.<br><em>Example:</em> A friend replies, 'I already promised to vote for a movie night idea,' so he can’t agree on the arcade.",
+        action: function() {
+          // Draw a dashed arrow to indicate rejection.
+          drawDashedArrow("acceptor2", "proposer", "orange");
+        }
+      },
+      {
+        txt: "Step 4: Proposer notices the rejection. This round is aborted and may be retried with a higher proposal number.<br><em>Example:</em> The suggesting student realizes the conflict and considers proposing a different idea (maybe a theme park trip).",
+        action: function() {
+          // Show a dashed callback from the Proposer.
+          drawDashedArrow("proposer", "acceptor2", "orange");
+        }
+      },
+      {
+        txt: "Step 5: End of simulation: The rejected proposal scenario is complete.<br><em>Example:</em> The group sees that not every proposal works, prompting them to try again with a better plan.",
+        action: function() { }
+      }
+    ];
+
+    // Global simulation control variables.
+    var currentSteps = correctSteps; // default scenario is correct proposal
+    var currentStep = 0;
+
+    // ------------------------------ Helper Functions ------------------------------
+
+    // Remove existing arrows by deleting the SVG overlay.
+    function resetArrows() {
+      var svg = document.getElementById("svgOverlay");
+      if (svg) {
+        svg.parentNode.removeChild(svg);
+      }
+      createSVG();
+    }
+
+    // Create a new SVG overlay inside the visualization container.
+    function createSVG() {
+      var svgNS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "500px");
+      svg.setAttribute("id", "svgOverlay");
+      svg.style.position = "absolute";
+      svg.style.top = "0";
+      svg.style.left = "0";
+      document.getElementById("visualization").appendChild(svg);
+    }
+
+    // Get the center (x, y) of an element relative to the visualization container.
+    function getCoordinates(elementId) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      return { 
+        x: rect.left - vizRect.left + rect.width / 2, 
+        y: rect.top - vizRect.top + rect.height / 2 
+      };
+    }
+
+    // Compute the point along the border of the element that lies along the line toward a target point.
+    function getBorderPoint(elementId, towardPoint) {
+      var element = document.getElementById(elementId);
+      var rect = element.getBoundingClientRect();
+      var vizRect = document.getElementById("visualization").getBoundingClientRect();
+      // Center coordinates relative to visualization container
+      var cx = rect.left - vizRect.left + rect.width / 2;
+      var cy = rect.top - vizRect.top + rect.height / 2;
+      var dx = towardPoint.x - cx;
+      var dy = towardPoint.y - cy;
+      if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+      var halfWidth = rect.width / 2;
+      var halfHeight = rect.height / 2;
+      // Compute scale to move from center to border along direction (dx, dy)
+      var scale = Math.min(halfWidth / Math.abs(dx), halfHeight / Math.abs(dy));
+      return { 
+        x: cx + dx * scale,
+        y: cy + dy * scale
+      };
+    }
+
+    // Draw a solid arrow from the border of one node to the border of another.
+    function drawArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      // Compute centers first.
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      // Determine border intersection points.
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+
+    // Draw a dashed arrow for signaling rejections.
+    function drawDashedArrow(fromId, toId, color = "black") {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) {
+        createSVG();
+        svg = document.getElementById("svgOverlay");
+      }
+      var sourceCenter = getCoordinates(fromId);
+      var targetCenter = getCoordinates(toId);
+      var startPoint = getBorderPoint(fromId, targetCenter);
+      var endPoint = getBorderPoint(toId, sourceCenter);
+
+      var svgNS = "http://www.w3.org/2000/svg";
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", startPoint.x);
+      line.setAttribute("y1", startPoint.y);
+      line.setAttribute("x2", endPoint.x);
+      line.setAttribute("y2", endPoint.y);
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-dasharray", "5,5");
+      line.setAttribute("marker-end", "url(#arrowhead)");
+      svg.appendChild(line);
+    }
+
+    // Create arrowhead marker in the SVG overlay.
+    function setupArrowhead() {
+      var svg = document.getElementById("svgOverlay");
+      if (!svg) return;
+      var svgNS = "http://www.w3.org/2000/svg";
+      var defs = document.createElementNS(svgNS, "defs");
+      var marker = document.createElementNS(svgNS, "marker");
+      marker.setAttribute("id", "arrowhead");
+      marker.setAttribute("markerWidth", "10");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "0");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      var polygon = document.createElementNS(svgNS, "polygon");
+      polygon.setAttribute("points", "0 0, 10 3.5, 0 7");
+      polygon.setAttribute("fill", "black");
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+    }
+
+    // ------------------------------ Simulation Control ------------------------------
+
+    // Update the explanation text based on current simulation step.
+    function updateExplanation() {
+      var explanationDiv = document.getElementById("explanation");
+      if (currentStep > 0 && currentStep <= currentSteps.length) {
+        explanationDiv.innerHTML = currentSteps[currentStep - 1].txt;
+      } else {
+        explanationDiv.innerHTML = "Simulation reset. Press Next to start.";
+      }
+    }
+
+    // Redraw the simulation up to currentStep.
+    function redrawSimulation() {
+      resetArrows();
+      setupArrowhead();
+      for (var i = 0; i < currentStep; i++) {
+        currentSteps[i].action();
+      }
+      updateExplanation();
+    }
+
+    // Advance one step of the simulation.
+    function nextStep() {
+      if (currentStep < currentSteps.length) {
+        currentSteps[currentStep].action();
+        currentStep++;
+        updateExplanation();
+      } else {
+        document.getElementById("explanation").innerHTML = "End of simulation.";
+      }
+    }
+
+    // ------------------------------ Event Handlers ------------------------------
+
+    document.getElementById("resetButton").onclick = function() {
+      currentStep = 0;
+      updateExplanation();
+      resetArrows();
+      setupArrowhead();
+    };
+
+    document.getElementById("backButton").onclick = function() {
+      if (currentStep > 0) {
+        currentStep--;
+        redrawSimulation();
+      }
+    };
+
+    document.getElementById("nextButton").onclick = function() {
+      nextStep();
+    };
+
+    // Handle simulation scenario changes.
+    document.getElementById("scenarioSelect").onchange = function() {
+      var val = this.value;
+      currentSteps = val === "correct" ? correctSteps : rejectedSteps;
+      currentStep = 0;
+      resetArrows();
+      setupArrowhead();
+      updateExplanation();
+    };
+
+    // Initialize the simulation when the page loads.
+    window.onload = function() {
+      resetArrows();
+      setupArrowhead();
+    };
+  </script>
+</body>
+</html>
