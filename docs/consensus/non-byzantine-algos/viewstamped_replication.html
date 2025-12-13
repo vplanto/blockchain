@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Viewstamped Replication: Recovery Logic</title>
+  <style>
+    :root {
+      --primary: #0d6efd;      /* Синій (Лідер) */
+      --heir: #198754;         /* Зелений (Спадкоємець) */
+      --backup: #6c757d;       /* Сірий (Бекaп) */
+      --danger: #dc3545;       /* Червоний (Крах) */
+      --bg: #f8f9fa;
+      --client-color: #6610f2; /* Фіолетовий (Клієнт) */
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0; padding: 0; background: var(--bg);
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* --- TOP BAR --- */
+    .top-bar {
+      background: white; padding: 15px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 100;
+      display: flex; align-items: center; justify-content: space-between; height: 60px;
+    }
+    .title-block h1 { margin: 0; font-size: 1.2rem; }
+    .controls { display: flex; gap: 15px; align-items: center; }
+    .math-panel {
+      background: #e9ecef; padding: 8px 15px; border-radius: 6px;
+      font-family: monospace; font-weight: bold; border: 1px dashed #999;
+    }
+    button {
+      padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;
+      font-weight: bold; color: white; font-size: 0.9rem; transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.96); }
+    .btn-req { background: var(--client-color); }
+    .btn-kill { background: var(--danger); }
+    .btn-reset { background: var(--backup); }
+
+    /* --- STAGE --- */
+    .stage {
+      flex-grow: 1; position: relative; background: #fff; margin: 10px;
+      border-radius: 12px; border: 1px solid #dee2e6; overflow: hidden;
+    }
+
+    /* CLIENT */
+    .client-node {
+      position: absolute; left: 5%; top: 50%; transform: translateY(-50%);
+      width: 100px; height: 100px; background: #f3e5f5;
+      border: 4px solid var(--client-color); border-radius: 12px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 20; box-shadow: 0 4px 15px rgba(102, 16, 242, 0.2);
+    }
+    .client-icon { font-size: 2rem; }
+    .client-label { font-weight: bold; color: var(--client-color); }
+
+    /* NODES */
+    .node {
+      position: absolute; width: 110px; height: 110px;
+      border-radius: 50%; border: 5px solid var(--backup); background: white;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 10; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      font-weight: bold; color: #333; cursor: pointer; /* Clickable */
+    }
+    .node:hover { transform: translate(-50%, -50%) scale(1.05); }
+
+    .node.primary {
+      border-color: var(--primary); background: #e7f1ff;
+      box-shadow: 0 0 30px rgba(13, 110, 253, 0.3);
+      transform: scale(1.15) translate(-50%, -50%) !important; z-index: 15;
+    }
+    .node.heir { border-color: var(--heir); border-style: dashed; background: #f0fff4; }
+    .node.offline {
+      filter: grayscale(100%); opacity: 0.6; background: #333; border-color: #000; color: #fff;
+      transform: translate(-50%, -50%) scale(0.9);
+    }
+    .node.offline:after { content: "OFFLINE"; color: red; font-size: 0.7rem; margin-top: 5px; }
+
+    .role-badge {
+      font-size: 0.65rem; text-transform: uppercase; padding: 3px 8px;
+      border-radius: 10px; background: #999; color: white; margin-bottom: 4px;
+    }
+    .node.primary .role-badge { background: var(--primary); }
+    .node.heir .role-badge { background: var(--heir); }
+
+    /* TIMERS */
+    .timer-track {
+      position: absolute; bottom: -20px; width: 100%; height: 8px;
+      background: #eee; border-radius: 4px; overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%; background: var(--danger); width: 0%; transition: width 0.1s linear;
+    }
+    .node.primary .timer-track, .node.offline .timer-track { opacity: 0; }
+
+    /* SVG & PACKETS */
+    svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+    #heir-arrow {
+      stroke: var(--heir); stroke-width: 4; stroke-dasharray: 10 5;
+      fill: none; marker-end: url(#arrowhead); opacity: 0.7; transition: d 0.5s;
+    }
+    .packet {
+      position: absolute; border-radius: 50%; z-index: 30; transform: translate(-50%, -50%);
+    }
+    .packet.heartbeat { width: 8px; height: 8px; background: #adb5bd; opacity: 0.6; }
+    .packet.request {
+      width: 16px; height: 16px; background: var(--client-color);
+      box-shadow: 0 0 10px var(--client-color); z-index: 40;
+    }
+
+    .toast {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(33, 37, 41, 0.9); color: white; padding: 10px 20px;
+      border-radius: 20px; font-size: 0.9rem; pointer-events: none; transition: opacity 0.3s;
+    }
+    .tooltip {
+      position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+      color: #666; font-size: 0.8rem; background: rgba(255,255,255,0.8); padding: 5px 10px; border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="title-block">
+      <h1>Viewstamped Replication</h1>
+      <span>Recovery & Deterministic View Change</span>
+    </div>
+    <div class="controls">
+      <div class="math-panel" id="math-display">Епоха 0 → Лідер N0</div>
+      <button class="btn-req" onclick="clientSend()">📨 Запит</button>
+      <button class="btn-kill" onclick="killPrimary()">💀 Вбити Лідера</button>
+      <button class="btn-reset" onclick="resetSim()">🔄 Ресет</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="tooltip">💡 Клікніть на будь-який вузол, щоб Вбити або Відновити його</div>
+    <div class="client-node" id="client">
+      <div class="client-icon">👤</div>
+      <div class="client-label">КЛІЄНТ</div>
+    </div>
+    <svg id="svg-layer">
+      <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#198754" />
+        </marker>
+      </defs>
+      <g id="mesh-lines" stroke="#eee" stroke-width="2"></g>
+      <path id="heir-arrow" d="" />
+    </svg>
+    <div class="toast" id="toast">Система готова.</div>
+  </div>
+
+  <script>
+    // --- CONFIG ---
+    const N = 5;
+    const HEARTBEAT_MS = 1000;
+    const TIMEOUT_MS = 3500;
+
+    let nodes = [];
+    let view = 0;
+    let lastTime = 0;
+
+    class Node {
+      constructor(id) {
+        this.id = id;
+        this.status = 'active'; 
+        this.timer = 0;
+        this.x = 0; this.y = 0;
+        this.el = null;
+      }
+
+      isPrimary() { return this.status === 'active' && this.id === (view % N); }
+      isHeir() { return this.status === 'active' && this.id === ((view + 1) % N); }
+
+      tick(dt) {
+        if (this.status === 'offline') return;
+
+        if (this.isPrimary()) {
+          this.timer += dt;
+          if (this.timer >= HEARTBEAT_MS) {
+            this.timer = 0;
+            this.sendPing();
+          }
+        } else {
+          this.timer += dt;
+          this.updateTimerVisual();
+          if (this.timer >= TIMEOUT_MS) {
+             triggerViewChange();
+          }
+        }
+      }
+
+      sendPing() {
+        nodes.forEach(target => {
+          if (target.id !== this.id && target.status !== 'offline') {
+            createPacket(this, target, 'heartbeat');
+            target.receivePing();
+          }
+        });
+      }
+
+      receivePing() {
+        if (this.status === 'offline') return;
+        this.timer = 0; // Heartbeat reset
+        this.updateTimerVisual();
+      }
+
+      updateTimerVisual() {
+        if (!this.el) return;
+        const fill = this.el.querySelector('.timer-fill');
+        if (this.isPrimary() || this.status === 'offline') return;
+        const pct = Math.min(100, (this.timer / TIMEOUT_MS) * 100);
+        fill.style.width = pct + '%';
+        fill.style.backgroundColor = pct > 80 ? '#dc3545' : '#666';
+      }
+
+      toggleStatus() {
+        if (this.status === 'active') {
+          this.status = 'offline';
+          showToast(`❌ Вузол N${this.id} вимкнено.`);
+        } else {
+          // RECOVERY LOGIC
+          this.status = 'active';
+          this.timer = 0; // Reset logic
+          showToast(`♻️ Вузол N${this.id} відновлено як БЕКАП.`);
+        }
+        this.render();
+        updateHeirArrow();
+      }
+
+      render() {
+        if (!this.el) return;
+        this.el.style.left = this.x + 'px';
+        this.el.style.top = this.y + 'px';
+        this.el.style.transform = 'translate(-50%, -50%)'; 
+
+        this.el.className = 'node';
+        if (this.status === 'offline') this.el.classList.add('offline');
+        else if (this.isPrimary()) this.el.classList.add('primary');
+        else if (this.isHeir()) this.el.classList.add('heir');
+
+        const badge = this.el.querySelector('.role-badge');
+        if (this.status === 'offline') { badge.innerText = "OFFLINE"; badge.style.background = "#333"; }
+        else if (this.isPrimary()) { badge.innerText = "ЛІДЕР"; badge.style.background = "var(--primary)"; }
+        else if (this.isHeir()) { badge.innerText = "СПАДКОЄМЕЦЬ"; badge.style.background = "var(--heir)"; }
+        else { badge.innerText = "БЕКАП"; badge.style.background = "#999"; }
+      }
+    }
+
+    // --- LOGIC ---
+
+    function clientSend() {
+      const primaryId = view % N;
+      const leader = nodes[primaryId];
+      
+      // Get Coords
+      const cRect = document.getElementById('client').getBoundingClientRect();
+      const sRect = document.getElementById('stage').getBoundingClientRect();
+      const cObj = { x: cRect.left - sRect.left + 50, y: cRect.top - sRect.top + 50 };
+
+      if (leader.status === 'offline') {
+        showToast("❌ Лідер мертвий. Чекайте зміни View!");
+        return;
+      }
+
+      showToast("📨 Запит -> Лідер");
+      createPacket(cObj, leader, 'request');
+      setTimeout(() => { if(leader.status==='active') leader.sendPing(); }, 600);
+    }
+
+    function triggerViewChange() {
+      view++;
+      const newLeaderId = view % N;
+      showToast(`⚠️ ТАЙМАУТ! Епоха ${view}. Новий лідер: N${newLeaderId}`);
+      nodes.forEach(n => { if (n.status !== 'offline') n.timer = 0; });
+      updateUI();
+    }
+
+    function killPrimary() {
+      const pid = view % N;
+      const node = nodes[pid];
+      if (node.status === 'active') node.toggleStatus();
+    }
+
+    function resetSim() {
+      view = 0;
+      nodes.forEach(n => { n.status = 'active'; n.timer = 0; });
+      updateUI();
+      showToast("🔄 Система скинута.");
+    }
+
+    function updateUI() {
+      updateMathDisplay();
+      nodes.forEach(n => n.render());
+      updateHeirArrow();
+    }
+
+    function init() {
+      const stage = document.getElementById('stage');
+      for (let i = 0; i < N; i++) {
+        const node = new Node(i);
+        nodes.push(node);
+        const el = document.createElement('div');
+        el.innerHTML = `
+          <div class="role-badge">БЕКАП</div>
+          <div style="font-size:1.2rem">N${i}</div>
+          <div class="timer-track"><div class="timer-fill"></div></div>
+        `;
+        el.onclick = () => node.toggleStatus(); // Click interactivity
+        stage.appendChild(el);
+        node.el = el;
+      }
+      
+      window.addEventListener('resize', layout);
+      layout();
+      loop();
+    }
+
+    function layout() {
+      const stage = document.getElementById('stage');
+      const w = stage.offsetWidth, h = stage.offsetHeight;
+      const cx = w * 0.6, cy = h * 0.5, r = Math.min(w,h)*0.35;
+
+      nodes.forEach((n, i) => {
+        const angle = (i * 2 * Math.PI / N) - Math.PI/2;
+        n.x = cx + r * Math.cos(angle);
+        n.y = cy + r * Math.sin(angle);
+        n.render();
+      });
+      drawMesh();
+      updateHeirArrow();
+    }
+
+    function drawMesh() {
+      const mesh = document.getElementById('mesh-lines');
+      mesh.innerHTML = '';
+      nodes.forEach((n1, i) => {
+        nodes.slice(i+1).forEach(n2 => {
+          const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          l.setAttribute('x1', n1.x); l.setAttribute('y1', n1.y);
+          l.setAttribute('x2', n2.x); l.setAttribute('y2', n2.y);
+          mesh.appendChild(l);
+        });
+      });
+    }
+
+    function updateHeirArrow() {
+      const pid = view % N;
+      const hid = (view + 1) % N;
+      const p = nodes[pid], h = nodes[hid];
+      const arrow = document.getElementById('heir-arrow');
+      
+      const sW = document.getElementById('stage').offsetWidth;
+      const sH = document.getElementById('stage').offsetHeight;
+
+      const d = `M ${p.x} ${p.y} Q ${sW * 0.6} ${sH * 0.5} ${h.x} ${h.y}`;
+      arrow.setAttribute('d', d);
+    }
+
+    function createPacket(src, dst, type) {
+      const stage = document.getElementById('stage');
+      const p = document.createElement('div');
+      p.className = `packet ${type}`;
+      p.style.left = src.x + 'px'; p.style.top = src.y + 'px';
+      stage.appendChild(p);
+      p.animate([
+        { left: src.x + 'px', top: src.y + 'px' },
+        { left: dst.x + 'px', top: dst.y + 'px' }
+      ], { duration: type==='request'?800:500 }).onfinish = () => p.remove();
+    }
+
+    function updateMathDisplay() {
+      document.getElementById('math-display').innerText = `Епоха ${view} → Лідер N${view%N}`;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg; t.style.opacity = 1;
+      clearTimeout(t.tm);
+      t.tm = setTimeout(() => t.style.opacity = 0.5, 3000);
+    }
+
+    function loop(t) {
+      if(!lastTime) lastTime=t;
+      const dt = t - lastTime;
+      lastTime = t;
+      nodes.forEach(n => n.tick(dt));
+      requestAnimationFrame(loop);
+    }
+
+    init();
+  </script>
+</body>
+</html>

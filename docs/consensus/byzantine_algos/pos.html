@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Візуалізація: Proof of Stake (Full Economy)</title>
+  <style>
+    :root {
+      --primary: #6f42c1;
+      --secondary: #007bff;
+      --success: #28a745;
+      --bg: #f4f7f6;
+      --text: #333;
+      --card-bg: #ffffff;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    h1 { text-align: center; margin-bottom: 5px; }
+    .subtitle { text-align: center; color: #666; font-style: italic; margin-bottom: 25px; }
+
+    .instructions {
+      max-width: 1000px;
+      margin: 0 auto 30px;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 8px;
+      border-left: 5px solid var(--primary);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .instructions h3 { margin-top: 0; }
+
+    /* --- DASHBOARD --- */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard { grid-template-columns: 1fr; }
+    }
+
+    /* --- PANELS --- */
+    .panel {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- VALIDATORS LIST --- */
+    .validator-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 8px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .validator-card.winner {
+      border-color: var(--success);
+      background-color: #d4edda;
+      transform: scale(1.02);
+      box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
+      z-index: 2;
+    }
+
+    /* Анімація нарахування нагороди */
+    .reward-popup {
+      position: absolute;
+      right: 10px;
+      top: -10px;
+      background: var(--success);
+      color: white;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.8em;
+      animation: floatUp 1.5s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    .validator-info strong { display: block; font-size: 1.05em; }
+    .validator-stats { font-size: 0.85em; color: #666; margin-top: 2px; }
+    
+    .stake-bar-container {
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      margin-top: 6px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .stake-bar { height: 100%; transition: width 0.5s; }
+
+    /* --- CHART --- */
+    #pieChart {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) 0deg 0deg);
+      margin: 0 auto 20px;
+      transition: background 0.5s ease;
+      border: 5px solid white;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    /* --- CONTROLS --- */
+    .btn-main {
+      width: 100%;
+      padding: 15px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: auto; 
+    }
+    .btn-main:hover { background: #5a32a3; }
+    .btn-main:disabled { background: #ccc; cursor: not-allowed; }
+
+    .btn-buy {
+      padding: 5px 10px;
+      background: var(--secondary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.8em;
+    }
+    .btn-buy:hover { background: #0056b3; }
+
+    /* --- CHAIN VISUALIZATION --- */
+    .chain-wrapper {
+      position: relative;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+
+    .chain-container {
+      display: flex;
+      align-items: center;
+      gap: 30px; 
+      overflow-x: auto;
+      padding: 10px 5px;
+      scroll-behavior: smooth;
+      min-height: 110px;
+    }
+
+    .block {
+      min-width: 90px;
+      height: 90px;
+      background: white;
+      border: 3px solid #ccc;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.85em;
+      animation: slideLeft 0.5s ease-out;
+      flex-shrink: 0;
+      position: relative;
+      cursor: pointer; /* Pointer to indicate interactivity */
+      transition: transform 0.2s;
+    }
+    
+    .block:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .block.active-inspect {
+      border-color: #333 !important;
+      background-color: #fffde7 !important;
+      transform: scale(1.05);
+    }
+
+    .block span { font-weight: bold; font-size: 1.4em; margin-bottom: 2px; }
+    
+    /* Стрілка */
+    .block:not(:first-child)::before {
+      content: '➡';
+      position: absolute;
+      left: -28px;
+      color: #ccc;
+      font-size: 20px;
+    }
+
+    @keyframes slideLeft {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* --- INSPECTOR PANEL (LOUPE) --- */
+    .inspector {
+      background: #2d2d2d;
+      color: #0f0;
+      font-family: 'Consolas', monospace;
+      padding: 15px;
+      border-radius: 8px;
+      min-height: 150px;
+      font-size: 0.9em;
+      position: relative;
+    }
+    
+    .inspector-title {
+      color: #fff;
+      border-bottom: 1px solid #555;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .tx-row {
+      margin-bottom: 4px;
+      opacity: 0;
+      animation: fadeIn 0.3s forwards;
+    }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .hash { color: #888; }
+    .value { color: #ffd700; }
+  </style>
+</head>
+<body>
+
+  <h1>Proof of Stake: Економіка та Блоки</h1>
+  <div class="subtitle">Інтерактивна модель (Лекція 1)</div>
+
+  <div class="instructions">
+    <h3>🔍 Нові функції:</h3>
+    <ol>
+      <li><strong>Винагорода (Incentive):</strong> Переможець отримує <b>+50 монет</b> за кожен блок. Багатші стають ще багатшими автоматично ("Compound Interest").</li>
+      <li><strong>Інспектор блоків (Loupe):</strong> Наведіть мишкою на будь-який блок у ланцюгу, щоб побачити транзакції всередині нього.</li>
+    </ol>
+  </div>
+
+  <div class="dashboard">
+    
+    <div class="panel">
+      <h3 style="text-align:center; margin-bottom:15px;">Ринок Валідаторів</h3>
+      <div id="pieChart"></div>
+      
+      <div id="validatorsList"></div>
+      
+      <button class="btn-main" id="btnNextBlock" onclick="runConsensusRound()">
+        🎰 Розіграти Блок (+50 Reward)
+      </button>
+    </div>
+
+    <div class="panel">
+      <h3>⛓ Блокчейн (Наведіть для деталей)</h3>
+      
+      <div class="chain-wrapper">
+        <div class="chain-container" id="chainHistory">
+          <div class="block" id="block-0" onmouseenter="inspectBlock(0)" 
+               style="border-style:dashed; opacity:0.7; border-color:#999; background:#fafafa;">
+            <span>#0</span>
+            <div>Genesis</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>🔍 Лупа: Вміст Блоку</h3>
+      <div class="inspector" id="inspectorContent">
+        <div style="color:#777; text-align:center; padding-top:40px;">
+          Наведіть курсор на блок, щоб побачити транзакції...
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- ДАНІ ---
+    const BLOCK_REWARD = 50;
+    
+    const validators = [
+      { id: 'user', name: 'ВИ (Студент)', stake: 1000, color: '#6f42c1', wins: 0 },
+      { id: 'whale', name: 'Кит (Whale)', stake: 9000, color: '#dc3545', wins: 0 },
+      { id: 'pool', name: 'Стейкінг Пул', stake: 2000, color: '#ffc107', wins: 0 }
+    ];
+
+    // Зберігаємо дані блоків для інспектора
+    const blockchainData = [
+      { 
+        id: 0, 
+        validator: 'System', 
+        hash: '0x0000000000000000', 
+        txs: ['System Init', 'Protocol Start'] 
+      }
+    ];
+
+    // --- ЛОГІКА ---
+
+    function getTotalStake() {
+      return validators.reduce((acc, v) => acc + v.stake, 0);
+    }
+
+    function calculateProbabilities() {
+      const total = getTotalStake();
+      return validators.map(v => ({
+        ...v,
+        percent: ((v.stake / total) * 100).toFixed(1)
+      }));
+    }
+
+    function buyStake() {
+      const user = validators.find(v => v.id === 'user');
+      user.stake += 1000;
+      updateUI();
+    }
+
+    function pickWinner() {
+      const total = getTotalStake();
+      let randomPoint = Math.random() * total;
+      for (const v of validators) {
+        if (randomPoint < v.stake) return v;
+        randomPoint -= v.stake;
+      }
+      return validators[validators.length - 1];
+    }
+
+    // Генератор фейкових транзакцій
+    function generateRandomTxs() {
+      const addresses = ['0x3a...1f', '0x8b...2c', '0x99...aa', '0x12...bb', 'BinanceHot', 'UniswapRouter'];
+      const txCount = Math.floor(Math.random() * 3) + 2; // 2-4 txs
+      const txs = [];
+      
+      for(let i=0; i<txCount; i++) {
+        const from = addresses[Math.floor(Math.random() * addresses.length)];
+        let to = addresses[Math.floor(Math.random() * addresses.length)];
+        while(from === to) to = addresses[Math.floor(Math.random() * addresses.length)];
+        
+        const amount = (Math.random() * 10).toFixed(2);
+        txs.push(`${from} ➡ ${to} <span class="value">(${amount} ETH)</span>`);
+      }
+      return txs;
+    }
+
+    // --- ВІЗУАЛІЗАЦІЯ ---
+
+    function updateUI() {
+      const data = calculateProbabilities();
+      const list = document.getElementById('validatorsList');
+      list.innerHTML = '';
+
+      let gradientParts = [];
+      let currentAngle = 0;
+
+      data.forEach(v => {
+        const isUser = v.id === 'user';
+        const card = document.createElement('div');
+        card.className = `validator-card ${v.id}-card`;
+        card.id = `card-${v.id}`;
+        
+        card.innerHTML = `
+          <div class="validator-info" style="flex-grow:1">
+            <strong style="color:${v.color}">${v.name}</strong>
+            <div class="validator-stats">
+              Стейк: <b>${v.stake}</b> <span style="color:#888">(${v.percent}%)</span>
+              | Wins: <b>${v.wins}</b>
+            </div>
+            <div class="stake-bar-container">
+              <div class="stake-bar" style="width:${v.percent}%; background:${v.color}"></div>
+            </div>
+          </div>
+          ${isUser ? `<button class="btn-buy" onclick="buyStake()">💰 +1000</button>` : ''}
+        `;
+        list.appendChild(card);
+
+        // Chart data
+        const angle = (v.stake / getTotalStake()) * 360;
+        gradientParts.push(`${v.color} ${currentAngle}deg ${currentAngle + angle}deg`);
+        currentAngle += angle;
+      });
+
+      // Chart Update
+      document.getElementById('pieChart').style.background = `conic-gradient(${gradientParts.join(', ')})`;
+    }
+
+    async function runConsensusRound() {
+      const btn = document.getElementById('btnNextBlock');
+      btn.disabled = true;
+      btn.innerHTML = '🎰 Обираємо...';
+
+      // Roulette Animation
+      const cards = document.querySelectorAll('.validator-card');
+      for (let i = 0; i < 6; i++) {
+        cards.forEach(c => c.style.background = 'white');
+        const randIdx = Math.floor(Math.random() * validators.length);
+        document.getElementById(`card-${validators[randIdx].id}`).style.background = '#f8f9fa';
+        await new Promise(r => setTimeout(r, 80)); 
+      }
+      
+      // Winner Logic
+      cards.forEach(c => c.style.background = 'white');
+      const winner = pickWinner();
+      
+      // 1. UPDATE STATE (Reward)
+      const realWinnerObj = validators.find(v => v.id === winner.id);
+      realWinnerObj.wins++;
+      realWinnerObj.stake += BLOCK_REWARD; // Rich get richer
+
+      // 2. Visual Feedback
+      const winnerCard = document.getElementById(`card-${winner.id}`);
+      winnerCard.classList.add('winner');
+      
+      // Floating Reward Label
+      const rewardLabel = document.createElement('div');
+      rewardLabel.className = 'reward-popup';
+      rewardLabel.innerText = `+${BLOCK_REWARD}`;
+      winnerCard.appendChild(rewardLabel);
+
+      setTimeout(() => {
+        winnerCard.classList.remove('winner');
+        if(winnerCard.contains(rewardLabel)) winnerCard.removeChild(rewardLabel);
+      }, 1500);
+
+      // 3. Add Block
+      addBlockToChain(winner);
+
+      btn.disabled = false;
+      btn.innerHTML = '🎰 Розіграти Блок (+50 Reward)';
+      updateUI(); // Reflect new stakes immediately
+    }
+
+    function addBlockToChain(winner) {
+      const container = document.getElementById('chainHistory');
+      const newHeight = blockchainData.length;
+      
+      // Generate Block Data
+      const newBlockData = {
+        id: newHeight,
+        validator: winner.name,
+        hash: '0x' + Math.random().toString(16).substr(2, 16),
+        txs: generateRandomTxs()
+      };
+      blockchainData.push(newBlockData);
+
+      // Create DOM
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.id = `block-${newHeight}`;
+      block.style.borderColor = winner.color;
+      block.style.backgroundColor = winner.id === 'user' ? '#f3e5f5' : '#fff'; 
+      // Add interaction
+      block.onmouseenter = () => inspectBlock(newHeight);
+      
+      block.innerHTML = `
+        <span style="color:${winner.color}">#${newHeight}</span>
+        <div style="font-size:0.75em; color:#555; text-align:center;">${winner.name.split(' ')[0]}</div>
+      `;
+      
+      container.appendChild(block);
+      
+      // Scroll to new
+      setTimeout(() => {
+        container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+        // Auto-inspect new block
+        inspectBlock(newHeight); 
+      }, 100);
+    }
+
+    // --- INSPECTOR FUNCTION ---
+    function inspectBlock(blockId) {
+      const data = blockchainData[blockId];
+      const inspector = document.getElementById('inspectorContent');
+      
+      // Highlight active block
+      document.querySelectorAll('.block').forEach(b => b.classList.remove('active-inspect'));
+      const activeEl = document.getElementById(`block-${blockId}`);
+      if(activeEl) activeEl.classList.add('active-inspect');
+
+      // Build HTML
+      inspector.innerHTML = `
+        <div class="inspector-title">
+          <span>BLOCK #${data.id}</span>
+          <span class="hash">${data.hash}</span>
+        </div>
+        <div style="margin-bottom:10px; color:#ccc;">
+          Validator: <span style="color:white">${data.validator}</span>
+        </div>
+        <div style="border-top:1px dashed #555; padding-top:5px; margin-bottom:5px; color:#888; font-size:0.8em">TRANSACTIONS:</div>
+        ${data.txs.map(tx => `<div class="tx-row">${tx}</div>`).join('')}
+      `;
+    }
+
+    // Init
+    updateUI();
+  </script>
+</body>
+</html>

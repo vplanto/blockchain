@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Візуалізація: Proof of Work</title>
+  <style>
+    :root {
+      --primary: #007bff;
+      --success: #28a745;
+      --danger: #dc3545;
+      --bg: #f4f7f6;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg);
+      color: #333;
+    }
+
+    h1 { text-align: center; margin-bottom: 5px; }
+    .subtitle { text-align: center; color: #666; font-style: italic; margin-bottom: 25px; }
+
+    .instructions {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 8px;
+      border-left: 5px solid var(--primary);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .instructions h3 { margin-top: 0; }
+
+    /* --- ЛАНЦЮГ (Container) --- */
+    .chain-wrapper {
+      display: flex;
+      flex-wrap: nowrap; /* ВИПРАВЛЕНО: Заборона переносу */
+      overflow-x: auto;  /* ВИПРАВЛЕНО: Горизонтальний скрол */
+      justify-content: flex-start;
+      gap: 20px;
+      padding: 20px 10px;
+      align-items: center; /* Центрування по вертикалі */
+      min-height: 450px; /* Місце для блоків */
+      
+      /* Стилізація скролбару */
+      scrollbar-width: thin;
+      scrollbar-color: #ccc transparent;
+    }
+    
+    .chain-wrapper::-webkit-scrollbar { height: 8px; }
+    .chain-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .chain-wrapper::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
+
+    /* --- БЛОК --- */
+    .block {
+      flex: 0 0 280px; /* Фіксована ширина, не стискати */
+      padding: 20px;
+      border-radius: 12px;
+      border: 3px solid #ccc;
+      background: white;
+      position: relative;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    }
+
+    .block.valid {
+      border-color: var(--success);
+      background-color: #f0fff4;
+    }
+    
+    .block.valid .status-badge {
+      background: var(--success);
+      content: "SIGNED";
+    }
+
+    .block.invalid {
+      border-color: var(--danger);
+      background-color: #fff5f5;
+      animation: shake 0.4s ease-in-out;
+    }
+
+    .status-badge {
+      position: absolute;
+      top: -12px;
+      right: 20px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+      text-transform: uppercase;
+      background: #999;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .block.invalid .status-badge {
+      background: var(--danger);
+      content: "INVALID";
+    }
+
+    /* --- ЗВ'ЯЗОК (Стрілка) --- */
+    .arrow-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #bbb;
+      transition: all 0.3s;
+      flex-shrink: 0; /* Не стискати стрілку */
+    }
+    .arrow-container.broken {
+      color: var(--danger);
+      font-size: 42px;
+      transform: scale(1.1);
+    }
+
+    /* --- ПОЛЯ --- */
+    .field-group { margin-bottom: 12px; }
+    label { display: block; font-size: 0.75em; font-weight: bold; text-transform: uppercase; color: #666; margin-bottom: 4px; }
+    
+    input, textarea {
+      width: 90%;
+      padding: 8px 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fafafa;
+    }
+    textarea { height: 50px; resize: none; }
+    textarea:focus { border-color: var(--primary); outline: none; background: white; }
+
+    /* Hash Colors */
+    .hash-val { font-weight: bold; transition: color 0.3s; }
+    .block.valid .hash-val { color: #1e7e34; }
+    .block.invalid .hash-val { color: #c62828; }
+
+    /* --- КНОПКИ --- */
+    .mine-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+    .mine-btn:hover { background: #0056b3; }
+    .mine-btn:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.7; }
+    .mine-btn.success { background: var(--success); }
+    .mine-btn.mining { background: #ffc107; color: #222; cursor: wait; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px) rotate(-1deg); }
+      75% { transform: translateX(4px) rotate(1deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Proof of Work: Механіка Довіри</h1>
+  <div class="subtitle">Інтерактивна лабораторна робота до Лекції 1</div>
+  
+  <div class="instructions">
+    <h3>🛠 Завдання:</h3>
+    <ol>
+      <li><strong>Майнінг (Mining):</strong> Натисніть кнопку <b>"⛏ ПІДПИСАТИ"</b> на першому блоці. Програма підбере число <code>Nonce</code> так, щоб хеш блоку став "красивим" (починався з цифри 0).</li>
+      <li><strong>Ланцюгова реакція:</strong> Проробіть це для всіх блоків, поки весь ланцюг не стане зеленим.</li>
+      <li><strong>Злам (Hack):</strong> Змініть суму транзакції в <b>Блоці #1</b>. Спостерігайте, як це зруйнує підписи всіх наступних блоків ("Broken Chain").</li>
+    </ol>
+  </div>
+
+  <div class="chain-wrapper" id="app"></div>
+
+  <script>
+    // --- НАЛАШТУВАННЯ ---
+    // Target: Hash must start with '0'. 
+    const TARGET_CHAR = '0'; 
+    
+    function isHashValid(hash) {
+      return hash.charAt(0) === TARGET_CHAR;
+    }
+
+    // Детермінована хеш-функція
+    function simpleHash(val) {
+      let hash = 0;
+      if (val.length === 0) return "00000000";
+      for (let i = 0; i < val.length; i++) {
+        const char = val.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+      }
+      let hex = (hash >>> 0).toString(16);
+      while (hex.length < 8) hex = "0" + hex;
+      return hex;
+    }
+
+    // Початкові дані
+    const state = [
+      { id: 1, nonce: 0, data: "Genesis: System Start", prev: "00000000", hash: "" },
+      { id: 2, nonce: 0, data: "Tx: Alice -> Bob (50 UAH)", prev: "", hash: "" },
+      { id: 3, nonce: 0, data: "Tx: Bob -> Service (10 UAH)", prev: "", hash: "" },
+      { id: 4, nonce: 0, data: "Contract: Deploy Token", prev: "", hash: "" }
+    ];
+
+    // --- ЯДРО ---
+
+    // Оновлення стану (миттєве)
+    function recalcSystem() {
+      for (let i = 0; i < state.length; i++) {
+        if (i > 0) {
+          state[i].prev = state[i-1].hash; 
+        }
+        const str = state[i].id + state[i].prev + state[i].data + state[i].nonce;
+        state[i].hash = simpleHash(str);
+      }
+      render();
+    }
+
+    // "Розумний" Майнінг (Batching)
+    function mine(idx) {
+      const btn = document.getElementById(`btn-${idx}`);
+      btn.innerHTML = "⚙️ Підбір Nonce...";
+      btn.classList.add('mining');
+      btn.disabled = true;
+
+      const block = state[idx];
+      
+      // Асинхронний цикл
+      function mineLoop() {
+        const BATCH_SIZE = 2000; // Робимо 2000 спроб за раз
+        let tries = 0;
+        
+        while (tries < BATCH_SIZE) {
+          block.nonce++;
+          const str = block.id + block.prev + block.data + block.nonce;
+          block.hash = simpleHash(str);
+          
+          if (isHashValid(block.hash)) {
+            // Знайшли!
+            recalcSystem();
+            btn.classList.remove('mining');
+            return; 
+          }
+          tries++;
+        }
+        
+        // Віддаємо контроль браузеру
+        setTimeout(mineLoop, 0);
+      }
+
+      // Старт
+      setTimeout(mineLoop, 10);
+    }
+
+    function updateData(idx, val) {
+      state[idx].data = val;
+      recalcSystem();
+    }
+
+    // --- ВІЗУАЛІЗАЦІЯ ---
+    function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+
+      state.forEach((block, idx) => {
+        const hashOk = isHashValid(block.hash);
+        const isValid = hashOk; // Валідність блоку залежить тільки від PoW
+
+        const div = document.createElement('div');
+        div.className = `block ${isValid ? 'valid' : 'invalid'}`;
+        
+        const statusText = isValid ? "SIGNED" : "INVALID";
+        
+        div.innerHTML = `
+          <div class="status-badge">${statusText}</div>
+          
+          <div class="field-group">
+            <label>Block ID</label>
+            <input value="#${block.id}" disabled style="font-weight:bold;">
+          </div>
+          
+          <div class="field-group">
+            <label>Nonce (Proof)</label>
+            <input value="${block.nonce}" disabled>
+          </div>
+          
+          <div class="field-group">
+            <label>Data (Транзакції)</label>
+            <textarea oninput="updateData(${idx}, this.value)">${block.data}</textarea>
+          </div>
+          
+          <div class="field-group">
+            <label>Previous Hash</label>
+            <input value="${block.prev}" disabled class="hash-val" style="font-size:11px">
+          </div>
+          
+          <div class="field-group">
+            <label>Block Hash (Target: ${TARGET_CHAR}...)</label>
+            <input value="${block.hash}" disabled class="hash-val">
+          </div>
+          
+          <button id="btn-${idx}" class="mine-btn ${isValid ? 'success' : ''}" 
+            onclick="mine(${idx})" ${isValid ? 'disabled' : ''}>
+            ${isValid ? '✅ Блок Підписано' : '⛏ ПІДПИСАТИ (Mine)'}
+          </button>
+        `;
+
+        if (idx > 0) {
+          const arrow = document.createElement('div');
+          const prevBlockValid = isHashValid(state[idx-1].hash);
+          arrow.className = `arrow-container ${prevBlockValid ? '' : 'broken'}`;
+          arrow.innerHTML = prevBlockValid ? '➡' : '❌';
+          app.appendChild(arrow);
+        }
+
+        app.appendChild(div);
+      });
+    }
+
+    // --- GARANTEED INVALID START (SABOTAGE) ---
+    // Ця функція перевіряє перший блок. Якщо він випадково "зелений",
+    // вона збільшує Nonce, поки він не стане "червоним".
+    function sabotageGenesis() {
+       let currentHash = simpleHash(state[0].id + state[0].prev + state[0].data + state[0].nonce);
+       
+       // Поки хеш "гарний" (валідний) — псуємо його, збільшуючи Nonce
+       while (isHashValid(currentHash)) {
+         state[0].nonce++; 
+         currentHash = simpleHash(state[0].id + state[0].prev + state[0].data + state[0].nonce);
+       }
+    }
+
+    // Запуск: спочатку саботаж, потім рендер
+    sabotageGenesis();
+    recalcSystem();
+
+  </script>
+</body>
+</html>

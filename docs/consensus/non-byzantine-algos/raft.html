@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Візуалізація Raft: Consensus via Strong Leader</title>
+  <style>
+    :root {
+      --follower: #6c757d;  /* Gray/Blue */
+      --candidate: #fd7e14; /* Orange */
+      --leader: #198754;    /* Green */
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --term-color: #0d6efd;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg);
+      color: #333;
+      overflow: hidden; /* Prevent scroll on animations */
+    }
+
+    h1 { text-align: center; margin: 0 0 10px 0; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9em; }
+
+    /*LAYOUT*/
+    .main-container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      height: 85vh;
+    }
+
+    /* CONTROLS & LOGS */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      border: 1px solid #dee2e6;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.1s;
+      font-size: 0.9rem;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-kill { background: #dc3545; }
+    .btn-req { background: #0d6efd; }
+    .btn-stop { background: #6c757d; }
+
+    .console {
+      flex-grow: 1;
+      background: #212529;
+      color: #00ff41;
+      font-family: 'Consolas', monospace;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-y: auto;
+      font-size: 0.8em;
+      line-height: 1.4;
+    }
+    .log-term { color: #0d6efd; font-weight: bold; }
+    .log-err { color: #dc3545; }
+
+    /* STAGE */
+    .stage {
+      position: relative;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      border: 1px solid #dee2e6;
+    }
+
+    /* NODES */
+    .node {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      background: white;
+      border: 4px solid var(--follower);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      transition: all 0.3s;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .node.follower { border-color: var(--follower); }
+    .node.candidate { border-color: var(--candidate); box-shadow: 0 0 15px var(--candidate); }
+    .node.leader { border-color: var(--leader); box-shadow: 0 0 20px var(--leader); background: #f0fff4; }
+    .node.offline { filter: grayscale(100%); opacity: 0.5; border-style: dashed; }
+
+    .node-header { font-weight: bold; font-size: 1.1em; }
+    .node-term { font-size: 0.8em; color: var(--term-color); font-weight: bold; }
+    .node-state { font-size: 0.7em; text-transform: uppercase; color: #666; margin-bottom: 4px; }
+
+    /* Timer Bar */
+    .timer-track {
+      width: 80%;
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    .timer-fill {
+      height: 100%;
+      background: #666;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    .node.leader .timer-fill { background: transparent; } /* Leaders don't have election timers */
+
+    /* Log Viz inside Node */
+    .node-log {
+      display: flex;
+      gap: 2px;
+      margin-top: 5px;
+    }
+    .log-entry {
+      width: 8px;
+      height: 8px;
+      background: #ccc;
+      border: 1px solid #999;
+    }
+    .log-entry.committed { background: var(--leader); border-color: #0f5132; }
+
+    /* PACKETS */
+    .packet {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+    line { stroke: #e9ecef; stroke-width: 2; }
+
+  </style>
+</head>
+<body>
+
+  <h1>Raft Consensus Algorithm</h1>
+  <div class="subtitle">Візуалізація: Randomized Timeout & Strong Leader</div>
+
+  <div class="main-container">
+    
+    <div class="sidebar">
+      <div class="panel">
+        <h3>🛠 Управління</h3>
+        <button class="btn btn-kill" onclick="killLeader()">☠️ Вбити Лідера</button>
+        <button class="btn btn-req" onclick="clientRequest()">📝 + Запит Клієнта</button>
+        <button class="btn btn-stop" onclick="togglePause()">⏯ Пауза / Старт</button>
+        <div style="font-size:0.8em; color:#666; margin-top:10px;">
+          * Клікайте на вузли, щоб вмикати/вимикати їх вручну.
+        </div>
+      </div>
+      
+      <div class="console" id="console">
+        <div>[SYSTEM] Raft Network Initialized.</div>
+        <div>[SYSTEM] Waiting for elections...</div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg id="connections"></svg>
+      </div>
+
+  </div>
+
+  <script>
+    // --- CONFIG ---
+    const NUM_NODES = 5;
+    const MIN_TIMEOUT = 3000; // ms
+    const MAX_TIMEOUT = 6000; // ms
+    const HEARTBEAT = 1500;   // ms
+    
+    // --- STATE ---
+    let nodes = [];
+    let isPaused = false;
+    let packetId = 0;
+
+    // --- CLASS: NODE ---
+    class RaftNode {
+      constructor(id, x, y) {
+        this.id = id;
+        this.x = x; // % position
+        this.y = y; // % position
+        
+        // Persistent State
+        this.currentTerm = 0;
+        this.votedFor = null;
+        this.log = []; // {term, value}
+        this.commitIndex = 0;
+
+        // Volatile State
+        this.state = 'follower'; // follower, candidate, leader, offline
+        this.electionTimer = 0;
+        this.electionTimeout = this.getRandomTimeout();
+        this.votesReceived = 0;
+        
+        // Visual element reference
+        this.el = null;
+        this.timerEl = null;
+      }
+
+      getRandomTimeout() {
+        return Math.floor(Math.random() * (MAX_TIMEOUT - MIN_TIMEOUT) + MIN_TIMEOUT);
+      }
+
+      resetTimer() {
+        this.electionTimer = 0;
+        this.electionTimeout = this.getRandomTimeout(); // Reset to NEW random
+        this.updateVisuals();
+      }
+
+      step(dt) {
+        if (this.state === 'offline' || this.state === 'leader') return;
+
+        this.electionTimer += dt;
+        
+        // Visual Update of Timer Bar
+        if (this.timerEl) {
+          const pct = Math.min(100, (this.electionTimer / this.electionTimeout) * 100);
+          this.timerEl.style.width = pct + '%';
+          
+          // Color code urgency
+          this.timerEl.style.backgroundColor = pct > 80 ? '#dc3545' : '#666';
+        }
+
+        // Timeout Triggered -> Start Election
+        if (this.electionTimer >= this.electionTimeout) {
+          this.startElection();
+        }
+      }
+
+      startElection() {
+        this.state = 'candidate';
+        this.currentTerm++;
+        this.votedFor = this.id;
+        this.votesReceived = 1; // Vote for self
+        this.resetTimer();
+        
+        log(`Node ${this.id} starts election (Term ${this.currentTerm})`);
+        this.updateVisuals();
+
+        // Broadcast RequestVote
+        broadcast(this, 'RequestVote', { term: this.currentTerm, candidateId: this.id });
+      }
+
+      receivePacket(type, data, senderId) {
+        if (this.state === 'offline') return;
+
+        // Universal Rule: If RPC term > currentTerm, convert to follower
+        if (data.term > this.currentTerm) {
+          this.currentTerm = data.term;
+          this.state = 'follower';
+          this.votedFor = null;
+          this.resetTimer(); // Reset on seeing higher term
+          this.updateVisuals();
+        }
+
+        if (type === 'RequestVote') {
+          // Vote logic
+          if (data.term === this.currentTerm && (this.votedFor === null || this.votedFor === data.candidateId)) {
+            this.votedFor = data.candidateId;
+            this.resetTimer(); // Granting vote resets timer
+            sendPacket(this, nodes[senderId], 'VoteGranted', { term: this.currentTerm, vote: true });
+          }
+        }
+        else if (type === 'VoteGranted') {
+           if (this.state === 'candidate' && data.term === this.currentTerm && data.vote) {
+             this.votesReceived++;
+             // Check Quorum (N/2 + 1) -> 3 for 5 nodes
+             if (this.votesReceived >= Math.ceil(NUM_NODES/2)) {
+               this.becomeLeader();
+             }
+           }
+        }
+        else if (type === 'AppendEntries') {
+          // Heartbeat or Data
+          if (data.term >= this.currentTerm) {
+            this.state = 'follower';
+            this.resetTimer(); // Heartbeat received!
+            
+            // Log Replication Logic (Simplified)
+            if (data.entries && data.entries.length > 0) {
+              this.log = data.entries; // Force sync for sim simplicity
+              this.commitIndex = data.commitIndex;
+              this.updateVisuals();
+            }
+            // Ack (not implemented for simple viz, assumed success)
+          }
+        }
+      }
+
+      becomeLeader() {
+        if (this.state === 'leader') return;
+        this.state = 'leader';
+        log(`👑 Node ${this.id} became LEADER (Term ${this.currentTerm})`);
+        this.updateVisuals();
+        
+        // Send initial heartbeat immediately
+        this.sendHeartbeat();
+        // Start Heartbeat Loop
+        if (this.hbInterval) clearInterval(this.hbInterval);
+        this.hbInterval = setInterval(() => this.sendHeartbeat(), HEARTBEAT);
+      }
+
+      sendHeartbeat() {
+        if (this.state !== 'leader') {
+          clearInterval(this.hbInterval);
+          return;
+        }
+        broadcast(this, 'AppendEntries', { 
+          term: this.currentTerm, 
+          leaderId: this.id,
+          entries: this.log,
+          commitIndex: this.commitIndex
+        });
+      }
+
+      updateVisuals() {
+        if (!this.el) return;
+        
+        // Class
+        this.el.className = `node ${this.state}`;
+        
+        // Term
+        this.el.querySelector('.node-term').innerText = `Term: ${this.currentTerm}`;
+        
+        // Logs
+        const logContainer = this.el.querySelector('.node-log');
+        logContainer.innerHTML = '';
+        this.log.forEach((entry, idx) => {
+          const div = document.createElement('div');
+          div.className = 'log-entry' + (idx < this.commitIndex ? ' committed' : '');
+          logContainer.appendChild(div);
+        });
+
+        // Hide timer bar if leader
+        if (this.state === 'leader') {
+          if (this.timerEl) this.timerEl.style.width = '0%';
+        }
+      }
+    }
+
+    // --- NETWORK ENGINE ---
+
+    function broadcast(sender, type, data) {
+      nodes.forEach(n => {
+        if (n.id !== sender.id) {
+          sendPacket(sender, n, type, data);
+        }
+      });
+    }
+
+    function sendPacket(fromNode, toNode, type, data) {
+      if (fromNode.state === 'offline') return;
+
+      const stage = document.getElementById('stage');
+      const pkt = document.createElement('div');
+      pkt.className = 'packet';
+      
+      // Color coding
+      pkt.style.backgroundColor = type === 'AppendEntries' ? 'var(--leader)' : 
+                                  type === 'RequestVote' ? 'var(--candidate)' : '#333';
+      
+      pkt.style.left = fromNode.x + '%';
+      pkt.style.top = fromNode.y + '%';
+      pkt.style.transform = 'translate(-50%, -50%)';
+      
+      stage.appendChild(pkt);
+
+      // Animate
+      const speed = 600 + Math.random() * 200; // Random latency
+      
+      const anim = pkt.animate([
+        { left: fromNode.x + '%', top: fromNode.y + '%' },
+        { left: toNode.x + '%', top: toNode.y + '%' }
+      ], {
+        duration: speed,
+        easing: 'linear'
+      });
+
+      anim.onfinish = () => {
+        pkt.remove();
+        toNode.receivePacket(type, data, fromNode.id);
+      };
+    }
+
+    // --- SETUP & CONTROLS ---
+
+    function init() {
+      const stage = document.getElementById('stage');
+      
+      // Pentagon Layout
+      const centerX = 50;
+      const centerY = 50;
+      const radius = 35;
+      
+      for (let i = 0; i < NUM_NODES; i++) {
+        const angle = (i * 2 * Math.PI / NUM_NODES) - Math.PI/2; // Start top
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        
+        const node = new RaftNode(i, x, y);
+        nodes.push(node);
+        
+        // Render DOM
+        const el = document.createElement('div');
+        el.className = 'node follower';
+        el.style.left = x + '%';
+        el.style.top = y + '%';
+        el.style.transform = 'translate(-50%, -50%)';
+        el.onclick = () => toggleNode(i);
+        
+        el.innerHTML = `
+          <div class="node-header">N${i}</div>
+          <div class="node-state" id="state-${i}">Follower</div>
+          <div class="node-term">Term: 0</div>
+          <div class="timer-track"><div class="timer-fill"></div></div>
+          <div class="node-log"></div>
+        `;
+        
+        stage.appendChild(el);
+        node.el = el;
+        node.timerEl = el.querySelector('.timer-fill');
+      }
+
+      // Draw SVG Lines (Mesh)
+      const svg = document.getElementById('connections');
+      for (let i = 0; i < NUM_NODES; i++) {
+        for (let j = i + 1; j < NUM_NODES; j++) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', nodes[i].x + '%');
+          line.setAttribute('y1', nodes[i].y + '%');
+          line.setAttribute('x2', nodes[j].x + '%');
+          line.setAttribute('y2', nodes[j].y + '%');
+          svg.appendChild(line);
+        }
+      }
+
+      // Loop
+      lastTime = Date.now();
+      requestAnimationFrame(gameLoop);
+    }
+
+    let lastTime = 0;
+    function gameLoop() {
+      const now = Date.now();
+      const dt = now - lastTime;
+      lastTime = now;
+
+      if (!isPaused) {
+        nodes.forEach(n => n.step(dt));
+      }
+      
+      requestAnimationFrame(gameLoop);
+    }
+
+    // --- ACTIONS ---
+
+    function log(msg) {
+      const consoleEl = document.getElementById('console');
+      const div = document.createElement('div');
+      const time = new Date().toLocaleTimeString().split(' ')[0];
+      div.innerHTML = `<span style="color:#666">[${time}]</span> ${msg}`;
+      consoleEl.appendChild(div);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function getLeader() {
+      return nodes.find(n => n.state === 'leader');
+    }
+
+    function killLeader() {
+      const leader = getLeader();
+      if (leader) {
+        toggleNode(leader.id);
+        log(`<span class="log-err">☠️ Leader N${leader.id} KILLED via Chaos Monkey</span>`);
+      } else {
+        log("No leader to kill.");
+      }
+    }
+
+    function toggleNode(id) {
+      const n = nodes[id];
+      if (n.state === 'offline') {
+        n.state = 'follower';
+        n.resetTimer();
+        log(`Node N${id} restarted.`);
+      } else {
+        n.state = 'offline';
+        // Clear interval if leader
+        if (n.hbInterval) clearInterval(n.hbInterval);
+      }
+      n.updateVisuals();
+    }
+
+    function clientRequest() {
+      const leader = getLeader();
+      if (!leader) {
+        log("<span class='log-err'>❌ Error: No Leader available to process request.</span>");
+        return;
+      }
+      
+      // Simulate Log Entry
+      leader.log.push({ term: leader.currentTerm, val: "X" });
+      leader.commitIndex++; // Immediate commit for sim simplicity
+      log(`📝 Client sent data to Leader N${leader.id}`);
+      leader.updateVisuals();
+      leader.sendHeartbeat(); // Trigger replication immediately
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      document.querySelector('.btn-stop').innerText = isPaused ? "▶️ Продовжити" : "⏯ Пауза";
+    }
+
+    // Start
+    init();
+
+  </script>
+</body>
+</html>

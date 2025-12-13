@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Візуалізація Paxos: Основа Google/AWS</title>
+  <style>
+    :root {
+      --primary: #0d6efd;   /* Phase 1 Color */
+      --secondary: #fd7e14; /* Phase 2 Color */
+      --bg: #f4f7f6;
+      --card-bg: #ffffff;
+      --node-border: #495057;
+      --success-color: #198754;
+      --error-color: #dc3545;
+      --text-muted: #6c757d;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg);
+      color: #333;
+    }
+
+    h1 { text-align: center; margin-bottom: 5px; letter-spacing: 0.5px; }
+    .subtitle { text-align: center; color: var(--text-muted); font-style: italic; margin-bottom: 25px; }
+
+    /* --- LAYOUT --- */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 20px;
+    }
+
+    /* --- CONTROLS --- */
+    .controls-panel {
+      background: var(--card-bg);
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 5px solid var(--primary);
+    }
+
+    .scenario-group { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+    
+    select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .btn-group { display: flex; gap: 10px; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background-color: var(--primary);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover { background-color: #0b5ed7; transform: translateY(-1px); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
+    button.reset { background-color: #6c757d; }
+
+    /* --- STAGE --- */
+    .stage {
+      position: relative;
+      height: 450px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border: 1px solid #dee2e6;
+    }
+
+    /* --- NODES --- */
+    .node {
+      position: absolute;
+      width: 110px;
+      height: 90px;
+      background: white;
+      border: 3px solid var(--node-border);
+      border-radius: 8px; /* Square servers for Acceptors */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      transition: all 0.3s;
+      box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    }
+    
+    .node.proposer { 
+      border-radius: 50%; /* Circle for Proposer */
+      width: 100px; height: 100px;
+      background: #e7f1ff; 
+      border-color: var(--primary);
+    }
+
+    .node.offline {
+      filter: grayscale(100%);
+      opacity: 0.6;
+      border-style: dashed;
+    }
+
+    .node-icon { font-size: 24px; margin-bottom: 2px; }
+    .node-label { font-weight: bold; font-size: 0.9em; }
+    .node-role { font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Storage Display inside Acceptors */
+    .storage {
+      font-family: 'Consolas', monospace;
+      font-size: 0.7em;
+      color: var(--secondary);
+      margin-top: 5px;
+      background: #eee;
+      padding: 2px 5px;
+      border-radius: 4px;
+      opacity: 0; /* Hidden initially */
+    }
+    .storage.visible { opacity: 1; }
+
+    /* --- BADGES --- */
+    .badge {
+      position: absolute;
+      top: -12px;
+      background: #333;
+      color: white;
+      font-size: 0.7em;
+      padding: 3px 8px;
+      border-radius: 10px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+    .badge.visible { opacity: 1; transform: translateY(0); }
+    .badge.promise { background: var(--primary); }
+    .badge.accepted { background: var(--success-color); }
+
+    /* --- ANIMATION PACKETS --- */
+    .packet {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      z-index: 5;
+      box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    }
+    /* Phase 1: Blue, Phase 2: Orange */
+    
+    /* --- LOGS --- */
+    .logs-panel {
+      background: #212529;
+      color: #00ff41; /* Hacker green */
+      font-family: 'Consolas', 'Monaco', monospace;
+      padding: 15px;
+      border-radius: 12px;
+      height: 140px;
+      overflow-y: auto;
+      font-size: 0.85em;
+      border: 1px solid #444;
+    }
+    .log-entry { border-bottom: 1px solid #333; padding: 3px 0; }
+    .log-ts { color: #6c757d; margin-right: 10px; }
+    .log-phase1 { color: #6ea8fe; font-weight: bold; }
+    .log-phase2 { color: #fd7e14; font-weight: bold; }
+
+    /* SVG Lines */
+    svg {
+      position: absolute;
+      width: 100%; height: 100%;
+      z-index: 1; pointer-events: none;
+    }
+    line { stroke: #ced4da; stroke-width: 2; }
+    
+  </style>
+</head>
+<body>
+
+  <h1>Візуалізація Paxos</h1>
+  <div class="subtitle">Інтерактивна модель до Лекції 1 (Non-Byzantine Consensus)</div>
+
+  <div class="container">
+    
+    <div class="controls-panel">
+      <div class="scenario-group">
+        <label>⚙️ Сценарій:</label>
+        <select id="scenarioSelect">
+          <option value="normal">✅ Нормальний консенсус (3/3)</option>
+          <option value="fail">⚠️ Часткова відмова (2/3 Live)</option>
+        </select>
+      </div>
+      
+      <div class="btn-group">
+        <button class="reset" id="resetButton">⏮ Скинути</button>
+        <button id="nextButton">Наступний Крок ➡</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg id="lines"></svg>
+      </div>
+
+    <div class="logs-panel" id="logs">
+      <div class="log-entry">
+        <span class="log-ts">[SYSTEM]</span> Paxos Node Cluster initialized. Waiting for Proposer...
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- SETUP ---
+    const nodes = [
+      { id: 'prop', label: 'Proposer', type: 'proposer', icon: '📢', x: 50, y: 20 },
+      { id: 'a1', label: 'Acceptor 1', type: 'acceptor', icon: '💾', x: 20, y: 70 },
+      { id: 'a2', label: 'Acceptor 2', type: 'acceptor', icon: '💾', x: 50, y: 70 },
+      { id: 'a3', label: 'Acceptor 3', type: 'acceptor', icon: '💾', x: 80, y: 70 }
+    ];
+
+    let currentStep = 0;
+    let scenario = 'normal';
+
+    // --- SCENARIOS ---
+    
+    // Normal Flow
+    const stepsNormal = [
+      {
+        text: "PHASE 1a: Proposer обирає Proposal ID (N=100) і шле PREPARE всім Акцепторам.",
+        log: "Broadcasting PREPARE(N=100)",
+        type: "p1",
+        anim: () => {
+          sendPacket('prop', ['a1', 'a2', 'a3'], 'var(--primary)');
+        }
+      },
+      {
+        text: "PHASE 1b: Акцептори обіцяють (PROMISE) ігнорувати запити з N < 100.",
+        log: "Quorum: 3/3 nodes responded with PROMISE(N=100)",
+        type: "p1",
+        anim: () => {
+          sendPacket('a1', ['prop'], 'var(--primary)');
+          sendPacket('a2', ['prop'], 'var(--primary)');
+          sendPacket('a3', ['prop'], 'var(--primary)');
+          updateStorage('a1', 'MinN:100');
+          updateStorage('a2', 'MinN:100');
+          updateStorage('a3', 'MinN:100');
+          ['a1','a2','a3'].forEach(id => setBadge(id, 'promise', 'PROMISED'));
+        }
+      },
+      {
+        text: "PHASE 2a: Proposer отримав кворум. Шле ACCEPT-запит зі значенням (Val='Data').",
+        log: "Quorum Reached. Broadcasting ACCEPT(N=100, Val='Data')",
+        type: "p2",
+        anim: () => {
+          sendPacket('prop', ['a1', 'a2', 'a3'], 'var(--secondary)');
+        }
+      },
+      {
+        text: "PHASE 2b: Акцептори записують значення, бо N >= MinN.",
+        log: "Consensus Reached! Value 'Data' persisted on all nodes.",
+        type: "p2",
+        anim: () => {
+          updateStorage('a1', 'Val:Data');
+          updateStorage('a2', 'Val:Data');
+          updateStorage('a3', 'Val:Data');
+          ['a1','a2','a3'].forEach(id => setBadge(id, 'accepted', 'ACCEPTED'));
+        }
+      }
+    ];
+
+    // Fail Flow (Node 3 dead)
+    const stepsFail = [
+      {
+        text: "INIT: Акцептор 3 вийшов з ладу (Offline).",
+        log: "WARNING: Acceptor 3 heartbeat failed.",
+        type: "p1",
+        anim: () => {
+          document.getElementById('a3').classList.add('offline');
+        }
+      },
+      {
+        text: "PHASE 1a: Proposer шле PREPARE(N=200) всім.",
+        log: "Broadcasting PREPARE(N=200)",
+        type: "p1",
+        anim: () => {
+          sendPacket('prop', ['a1', 'a2', 'a3'], 'var(--primary)');
+        }
+      },
+      {
+        text: "PHASE 1b: Тільки 2 з 3 відповідають. Акцептор 3 мовчить.",
+        log: "Quorum Check: 2/3 responses. (Threshold > 1.5). PROCEED.",
+        type: "p1",
+        anim: () => {
+          // A3 does not respond
+          sendPacket('a1', ['prop'], 'var(--primary)');
+          sendPacket('a2', ['prop'], 'var(--primary)');
+          updateStorage('a1', 'MinN:200');
+          updateStorage('a2', 'MinN:200');
+          ['a1','a2'].forEach(id => setBadge(id, 'promise', 'PROMISED'));
+        }
+      },
+      {
+        text: "PHASE 2a: Кворум є (2 > 1.5). Шлемо ACCEPT(Val='Rescue').",
+        log: "Broadcasting ACCEPT(N=200, Val='Rescue')",
+        type: "p2",
+        anim: () => {
+          sendPacket('prop', ['a1', 'a2'], 'var(--secondary)');
+           // Packet to a3 is lost or fails
+        }
+      },
+      {
+        text: "PHASE 2b: Система працює! Більшість (Majority) записала дані.",
+        log: "SUCCESS: Value 'Rescue' saved on 2 nodes. Consensus valid.",
+        type: "p2",
+        anim: () => {
+          updateStorage('a1', 'Val:Rescue');
+          updateStorage('a2', 'Val:Rescue');
+          ['a1','a2'].forEach(id => setBadge(id, 'accepted', 'ACCEPTED'));
+        }
+      }
+    ];
+
+    // --- RENDER ---
+    
+    function init() {
+      const stage = document.getElementById('stage');
+      const svg = document.getElementById('lines');
+      
+      stage.querySelectorAll('.node').forEach(n => n.remove());
+      svg.innerHTML = '';
+      
+      // Render Nodes
+      nodes.forEach(n => {
+        const div = document.createElement('div');
+        div.className = `node ${n.type}`;
+        div.id = n.id;
+        div.style.left = n.x + '%';
+        div.style.top = n.y + '%';
+        div.style.transform = 'translate(-50%, -50%)';
+        
+        div.innerHTML = `
+          <div class="badge" id="badge-${n.id}"></div>
+          <div class="node-icon">${n.icon}</div>
+          <div class="node-label">${n.label}</div>
+          <div class="node-role">${n.type === 'proposer' ? 'Leader' : 'Storage'}</div>
+          <div class="storage" id="store-${n.id}"></div>
+        `;
+        stage.appendChild(div);
+      });
+
+      // Render Lines (Star topology)
+      const prop = nodes[0];
+      const acceptors = nodes.slice(1);
+      
+      acceptors.forEach(acc => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', prop.x + '%');
+        line.setAttribute('y1', prop.y + '%');
+        line.setAttribute('x2', acc.x + '%');
+        line.setAttribute('y2', acc.y + '%');
+        svg.appendChild(line);
+      });
+    }
+
+    // --- ANIMATION ENGINE ---
+
+    function sendPacket(fromId, toIds, color) {
+      const stage = document.getElementById('stage');
+      const fromNode = nodes.find(n => n.id === fromId);
+      
+      toIds.forEach(toId => {
+        const toNode = nodes.find(n => n.id === toId);
+        // Skip dead nodes
+        const el = document.getElementById(toId);
+        if (el.classList.contains('offline') && fromId !== toId) return; 
+
+        const pkt = document.createElement('div');
+        pkt.className = 'packet';
+        pkt.style.backgroundColor = color;
+        
+        // Positions
+        pkt.style.left = fromNode.x + '%';
+        pkt.style.top = fromNode.y + '%';
+        pkt.style.transform = 'translate(-50%, -50%)';
+        
+        stage.appendChild(pkt);
+        
+        const anim = pkt.animate([
+          { left: fromNode.x + '%', top: fromNode.y + '%' },
+          { left: toNode.x + '%', top: toNode.y + '%' }
+        ], {
+          duration: 1000,
+          easing: 'ease-in-out',
+          fill: 'forwards'
+        });
+        
+        anim.onfinish = () => pkt.remove();
+      });
+    }
+
+    function updateStorage(nodeId, text) {
+      const el = document.getElementById(`store-${nodeId}`);
+      el.innerText = text;
+      el.classList.add('visible');
+    }
+
+    function setBadge(nodeId, type, text) {
+      const b = document.getElementById(`badge-${nodeId}`);
+      b.className = `badge ${type} visible`;
+      b.innerText = text;
+    }
+
+    function addLog(text, type) {
+      const logs = document.getElementById('logs');
+      const row = document.createElement('div');
+      row.className = 'log-entry';
+      
+      const time = new Date().toLocaleTimeString().split(' ')[0];
+      const prefix = type === 'p1' ? '<span class="log-phase1">[PHASE 1]</span>' : 
+                     type === 'p2' ? '<span class="log-phase2">[PHASE 2]</span>' : '';
+                     
+      row.innerHTML = `<span class="log-ts">[${time}]</span> ${prefix} ${text}`;
+      logs.appendChild(row);
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    // --- CONTROLS ---
+
+    document.getElementById('nextButton').onclick = () => {
+      const activeSteps = scenario === 'normal' ? stepsNormal : stepsFail;
+      
+      if (currentStep < activeSteps.length) {
+        const s = activeSteps[currentStep];
+        addLog(s.log, s.type);
+        if(s.anim) s.anim();
+        currentStep++;
+      } else {
+        addLog("Sequence complete. Reset to restart.", "");
+        document.getElementById('nextButton').disabled = true;
+      }
+    };
+
+    document.getElementById('resetButton').onclick = () => {
+      currentStep = 0;
+      document.getElementById('logs').innerHTML = '<div class="log-entry">[SYSTEM] Resetting cluster state...</div>';
+      document.getElementById('nextButton').disabled = false;
+      init();
+    };
+
+    document.getElementById('scenarioSelect').onchange = (e) => {
+      scenario = e.target.value;
+      document.getElementById('resetButton').click();
+    };
+
+    // Boot
+    init();
+
+  </script>
+</body>
+</html>

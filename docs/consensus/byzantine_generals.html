@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Проблема Візантійських Генералів</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --accent: #bb86fc; /* Фіолетовий */
+      --loyal: #03dac6;  /* Бірюзовий */
+      --traitor: #cf6679;/* Червоний */
+      --text: #e0e0e0;
+      --cft-color: #4fc3f7; 
+      --bft-color: #ffb74d; 
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+
+    /* --- HERO SECTION (Повернуто текст) --- */
+    .hero {
+      text-align: center;
+      padding: 40px 20px;
+      background: linear-gradient(180deg, rgba(187,134,252,0.1) 0%, rgba(18,18,18,1) 100%);
+      border-bottom: 1px solid #333;
+    }
+    h1 { font-size: 2.5rem; margin-bottom: 10px; color: var(--accent); }
+    .subtitle { color: #aaa; font-size: 1.1rem; max-width: 700px; margin: 0 auto; }
+
+    /* --- VISUALIZATION STAGE --- */
+    .stage-container {
+      position: relative;
+      width: 95%;
+      max-width: 900px;
+      height: 550px;
+      margin: 30px auto;
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid #333;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+
+    /* NODES */
+    .general {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px solid #555;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #2c2c2c;
+      z-index: 10;
+      font-weight: bold;
+      font-size: 0.8rem;
+      transition: all 0.3s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .general.commander { 
+      border-color: var(--accent); 
+      background: #2a1a2e;
+      top: 10%; left: 50%; 
+      transform: translateX(-50%); 
+      z-index: 20;
+      width: 100px; height: 100px;
+    }
+    
+    .general.traitor {
+      border-color: var(--traitor);
+      box-shadow: 0 0 20px rgba(207, 102, 121, 0.3);
+    }
+
+    .role-badge {
+      font-size: 0.65rem;
+      color: #888;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+    
+    .status-bubble {
+      position: absolute;
+      bottom: -30px;
+      padding: 4px 10px;
+      border-radius: 10px;
+      background: #333;
+      border: 1px solid #444;
+      font-size: 0.7rem;
+      min-width: 80px;
+      text-align: center;
+      white-space: nowrap;
+      transition: background 0.3s;
+      z-index: 30;
+    }
+
+    /* MESSAGES */
+    .msg {
+      position: absolute;
+      width: 12px; height: 12px; border-radius: 50%;
+      z-index: 5; box-shadow: 0 0 8px currentColor;
+    }
+    .msg.attack { background: var(--loyal); color: var(--loyal); }
+    .msg.retreat { background: var(--traitor); color: var(--traitor); }
+
+    /* CONTROLS */
+    .controls {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    button {
+      padding: 14px 30px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: transform 0.1s, filter 0.2s;
+      margin: 0 10px;
+    }
+    button:hover { filter: brightness(1.1); }
+    button:active { transform: scale(0.96); }
+    button:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+    #log {
+      margin-top: 20px; font-family: 'Consolas', monospace; color: #888; min-height: 25px;
+    }
+
+    /* --- ALGORITHM NAVIGATION (Повернуто таблиці) --- */
+    .algo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      max-width: 1100px;
+      margin: 0 auto 50px auto;
+      padding: 0 20px;
+    }
+
+    .column {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 25px;
+      border-top: 5px solid #555;
+    }
+    .column.cft { border-color: var(--cft-color); }
+    .column.bft { border-color: var(--bft-color); }
+
+    .column h2 { margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.4rem; }
+    .tag { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; color: #000; text-transform: uppercase; font-weight: bold; }
+    
+    .link-card {
+      display: block;
+      background: #2c2c2c;
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+      border-left: 4px solid transparent;
+    }
+    .link-card:hover {
+      background: #383838;
+      transform: translateX(5px);
+    }
+    .cft .link-card:hover { border-left-color: var(--cft-color); }
+    .bft .link-card:hover { border-left-color: var(--bft-color); }
+
+    .meta { display: block; font-size: 0.85rem; color: #999; margin-top: 6px; }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.9rem;
+    }
+    .comparison-table th { text-align: left; color: #aaa; border-bottom: 1px solid #444; padding: 8px; }
+    .comparison-table td { padding: 10px 8px; border-bottom: 1px solid #333; }
+    
+    /* SVG LINES */
+    svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+    
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <h1>Проблема Візантійських Генералів</h1>
+    <div class="subtitle">
+      Фундаментальна дилема розподілених систем: як досягти згоди, коли серед нас є зрадники?
+      <br>Візуалізація складності комунікації O(N²).
+    </div>
+  </div>
+
+  <div class="stage-container" id="stage">
+    <svg id="lines"></svg>
+    <div style="position:absolute; bottom:15px; right:20px; text-align:right; color:#666; font-size:0.85rem;">
+      <div style="margin-bottom:5px;"><span style="color:var(--loyal)">●</span> Наказ "АТАКА"</div>
+      <div><span style="color:var(--traitor)">●</span> Наказ "ВІДСТУП"</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnRun" onclick="runSimulation()">⚔️ Віддати Наказ "АТАКА"</button>
+    <button onclick="location.reload()" style="background:#333; color:#fff">🔄 Скинути</button>
+    <div id="log">Система готова. Очікування наказу...</div>
+  </div>
+
+  <div class="algo-grid">
+    
+    <div class="column cft">
+      <h2>
+        <span style="color:var(--cft-color)">CFT Алгоритми</span>
+        <span class="tag" style="background:var(--cft-color)">Crash Fault Tolerant</span>
+      </h2>
+      <p style="font-size:0.9rem; color:#aaa;">
+        Вузли можуть <b>ламатися</b> (офлайн), але не брешуть. Стандарт для Google/AWS.
+      </p>
+
+      <table class="comparison-table">
+        <tr><th>Вимога</th><th>Значення</th></tr>
+        <tr><td>Довіра</td><td>Висока (Закритий периметр)</td></tr>
+        <tr><td>Кворум</td><td>Більшість (N > 2f)</td></tr>
+        <tr><td>Лідер</td><td>Сильний, стабільний</td></tr>
+      </table>
+
+      <br>
+
+      <a href="./non-byzantine-algos/paxos.html" class="link-card">
+        <strong>Paxos</strong>
+        <span class="meta">Батько консенсусу. Складний, академічний.</span>
+      </a>
+
+      <a href="./non-byzantine-algos/raft.html" class="link-card">
+        <strong>Raft</strong>
+        <span class="meta">Зрозумілий Paxos. Вибори через випадковий таймер.</span>
+      </a>
+      
+      <a href="./non-byzantine-algos/viewstamped_replication.html" class="link-card">
+        <strong>VR (Viewstamped)</strong>
+        <span class="meta">Детермінована ротація лідера.</span>
+      </a>
+    </div>
+
+    <div class="column bft">
+      <h2>
+        <span style="color:var(--bft-color)">BFT Алгоритми</span>
+        <span class="tag" style="background:var(--bft-color)">Byzantine Fault Tolerant</span>
+      </h2>
+      <p style="font-size:0.9rem; color:#aaa;">
+        Вузли можуть бути <b>Зрадниками</b>. Працює у ворожому середовищі (Blockchain).
+      </p>
+
+      <table class="comparison-table">
+        <tr><th>Вимога</th><th>Значення</th></tr>
+        <tr><td>Довіра</td><td>Нульова (Internet)</td></tr>
+        <tr><td>Кворум</td><td>Супер-більшість (N ≥ 3f + 1)</td></tr>
+        <tr><td>Ціна</td><td>Висока (Mining / Staking)</td></tr>
+      </table>
+
+      <br>
+
+      <a href="./byzantine_algos/pbft.html" class="link-card">
+        <strong>pBFT</strong>
+        <span class="meta">Класика. Голосування у 3 фази.</span>
+      </a>
+
+      <a href="./byzantine_algos/pow.html" class="link-card">
+        <strong>Proof of Work</strong>
+        <span class="meta">Bitcoin. Захист енергією (Mining).</span>
+      </a>
+
+      <a href="./byzantine_algos/pos.html" class="link-card">
+        <strong>Proof of Stake</strong>
+        <span class="meta">Ethereum. Захист грошима (Slashing).</span>
+      </a>
+    </div>
+
+  </div>
+
+  <script>
+    // --- CONFIG ---
+    const TOTAL_NODES = 6; // 1 Commander + 5 Lieutenants
+    const COMMANDER_ID = 0;
+    const TRAITOR_ID = 4; // Node 4 is the traitor
+    
+    let nodes = [];
+
+    function init() {
+      const stage = document.getElementById('stage');
+      const svg = document.getElementById('lines');
+      
+      const width = stage.offsetWidth;
+      const height = stage.offsetHeight;
+      const centerX = width / 2;
+      
+      // Geometry
+      const radius = 180;
+      const commanderY = 80;
+      const arcCenterY = 180;
+
+      // 1. Create Commander
+      createNode(COMMANDER_ID, centerX, commanderY, 'commander');
+
+      // 2. Create Lieutenants (Arc)
+      const lieutenantsCount = TOTAL_NODES - 1;
+      const stepAngle = Math.PI / (lieutenantsCount - 1); // Spread over 180 degrees
+      
+      for (let i = 1; i <= lieutenantsCount; i++) {
+        // Calculate position in a semi-circle
+        const angle = Math.PI - (stepAngle * (i - 1)); // Start from left (180) to right (0)
+        
+        const x = centerX + (radius + 50) * Math.cos(angle);
+        const y = arcCenterY + (radius) * Math.sin(angle) * 1.2;
+
+        const role = (i === TRAITOR_ID) ? 'traitor' : 'loyal';
+        createNode(i, x, y, role);
+      }
+
+      // 3. Draw Mesh Lines (Low Opacity)
+      // Connect everyone to everyone to show potential communication paths
+      nodes.forEach(n1 => {
+        nodes.forEach(n2 => {
+          if (n1.id < n2.id) {
+            drawLine(n1, n2);
+          }
+        });
+      });
+    }
+
+    function createNode(id, x, y, type) {
+      const stage = document.getElementById('stage');
+      const el = document.createElement('div');
+      
+      let label = type === 'commander' ? 'СУЛТАН' : `Візир ${id}`;
+      let roleText = type === 'commander' ? 'COMMANDER' : (type === 'traitor' ? 'ЗРАДНИК' : 'ВІРНИЙ');
+      let colorStyle = type === 'traitor' ? 'color:#cf6679' : (type === 'commander' ? 'color:#bb86fc' : 'color:#888');
+
+      el.className = `general ${type}`;
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      el.style.transform = 'translate(-50%, -50%)';
+      
+      el.innerHTML = `
+        <div class="role-badge" style="${colorStyle}">${roleText}</div>
+        <div>${label}</div>
+        <div class="status-bubble" id="status-${id}">Очікування</div>
+      `;
+      
+      stage.appendChild(el);
+      
+      nodes.push({ id, x, y, type, el, receivedVotes: [] });
+    }
+
+    function drawLine(n1, n2) {
+      const svg = document.getElementById('lines');
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', n1.x);
+      line.setAttribute('y1', n1.y);
+      line.setAttribute('x2', n2.x);
+      line.setAttribute('y2', n2.y);
+      line.setAttribute('stroke', '#444');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('opacity', '0.2');
+      svg.appendChild(line);
+    }
+
+    async function runSimulation() {
+      const btn = document.getElementById('btnRun');
+      btn.disabled = true;
+      const log = document.getElementById('log');
+
+      // --- PHASE 1: COMMANDER ORDER ---
+      log.innerHTML = "🔊 <b>ФАЗА 1:</b> Султан наказує всім: <b style='color:var(--loyal)'>АТАКА</b>";
+      
+      const commander = nodes[COMMANDER_ID];
+      const lieutenants = nodes.filter(n => n.id !== COMMANDER_ID);
+
+      // Animation: Commander -> Lieutenants
+      lieutenants.forEach(lt => {
+        sendMsg(commander, lt, 'attack');
+        lt.receivedVotes.push('attack'); // They heard the commander
+        updateStatus(lt, "Слухаю...");
+      });
+
+      await wait(1500);
+
+      // --- PHASE 2: GOSSIP (FULL MESH) ---
+      log.innerHTML = "🗣 <b>ФАЗА 2 (Gossip):</b> Генерали переказують наказ один одному...";
+      
+      // Each lieutenant tells every OTHER lieutenant what they heard
+      let totalMessages = 0;
+
+      for (let sender of lieutenants) {
+        for (let receiver of lieutenants) {
+          if (sender.id === receiver.id) continue;
+
+          // LOGIC:
+          // Honest node relays what they heard ('attack').
+          // Traitor LIES and says 'retreat'.
+          let message = 'attack'; 
+          
+          if (sender.type === 'traitor') {
+            message = 'retreat'; // The Lie
+          }
+
+          // Visual Chaos: Randomize timing slightly
+          const delay = Math.random() * 1500;
+          
+          setTimeout(() => {
+            sendMsg(sender, receiver, message);
+            receiver.receivedVotes.push(message);
+          }, delay);
+          
+          totalMessages++;
+        }
+      }
+
+      await wait(2500);
+
+      // --- PHASE 3: CONSENSUS CHECK ---
+      log.innerHTML = `📊 <b>ФАЗА 3:</b> Підрахунок (${totalMessages} повідомлень). Узгодження неможливе.`;
+
+      lieutenants.forEach(lt => {
+        const attackCount = lt.receivedVotes.filter(v => v === 'attack').length;
+        const retreatCount = lt.receivedVotes.filter(v => v === 'retreat').length;
+        
+        const bubble = document.getElementById(`status-${lt.id}`);
+        
+        if (lt.type === 'traitor') {
+          bubble.innerHTML = "😈 БРЕХАВ УСІМ";
+          bubble.style.borderColor = "var(--traitor)";
+          bubble.style.color = "var(--traitor)";
+        } else {
+          // Loyal node sees inconsistency
+          bubble.innerHTML = `⚔️:${attackCount} vs 🏳️:${retreatCount}`;
+          bubble.style.borderColor = "var(--bft-color)";
+          bubble.style.color = "white";
+          
+          // Visual cue for confusion
+          if (retreatCount > 0) {
+             bubble.innerHTML += " <br>(Збентежений)";
+             bubble.style.background = "#3e2723"; // Dark red/orange tint
+          }
+        }
+      });
+    }
+
+    function updateStatus(node, text) {
+      document.getElementById(`status-${node.id}`).innerText = text;
+    }
+
+    function sendMsg(from, to, type) {
+      const stage = document.getElementById('stage');
+      const el = document.createElement('div');
+      el.className = `msg ${type}`;
+      stage.appendChild(el);
+
+      // Positions
+      el.style.left = from.x + 'px';
+      el.style.top = from.y + 'px';
+      el.style.transform = 'translate(-50%, -50%)';
+
+      const anim = el.animate([
+        { left: from.x + 'px', top: from.y + 'px' },
+        { left: to.x + 'px', top: to.y + 'px' }
+      ], {
+        duration: 800 + Math.random() * 400, // Variable speed
+        easing: 'ease-out'
+      });
+
+      anim.onfinish = () => el.remove();
+    }
+
+    function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    // Init
+    window.onload = init;
+    window.onresize = () => {
+      document.getElementById('stage').innerHTML = '<svg id="lines"></svg>';
+      nodes = [];
+      init();
+    };
+
+  </script>
+</body>
+</html>

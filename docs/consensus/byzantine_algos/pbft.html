@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Візуалізація pBFT: Алгоритм Консенсусу</title>
+  <style>
+    :root {
+      --primary: #007bff;
+      --bg: #f4f7f6;
+      --card-bg: #ffffff;
+      --node-border: #333;
+      --leader-color: #ffc107;
+      --malicious-color: #dc3545;
+      --success-color: #28a745;
+      --text-muted: #6c757d;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: var(--bg);
+      color: #333;
+    }
+
+    h1 { text-align: center; margin-bottom: 5px; letter-spacing: 1px; }
+    .subtitle { text-align: center; color: var(--text-muted); font-style: italic; margin-bottom: 25px; }
+
+    /* --- LAYOUT --- */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 20px;
+    }
+
+    /* --- CONTROLS --- */
+    .controls-panel {
+      background: var(--card-bg);
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .scenario-group { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+    
+    select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-family: inherit;
+    }
+
+    .btn-group { display: flex; gap: 10px; }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background-color: var(--primary);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    button:hover { background-color: #0056b3; transform: translateY(-1px); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
+    button.reset { background-color: #6c757d; }
+    button.reset:hover { background-color: #545b62; }
+
+    /* --- VISUALIZATION STAGE --- */
+    .stage {
+      position: relative;
+      height: 500px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      overflow: hidden;
+      border: 1px solid #eee;
+    }
+
+    /* --- NODES (SERVERS) --- */
+    .node {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid var(--node-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .node-icon { font-size: 24px; margin-bottom: 5px; }
+    .node-label { font-weight: bold; font-size: 0.9em; }
+    .node-role { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* States */
+    .node.leader { border-color: var(--leader-color); background: #fffbf0; }
+    .node.leader .node-icon { content: '👑'; }
+    
+    .node.malicious { border-color: var(--malicious-color); background: #fff5f5; }
+    .node.malicious .node-icon { filter: grayscale(100%); opacity: 0.7; }
+    
+    .node.client { 
+      width: 120px; height: 70px; 
+      border-radius: 8px; 
+      background: #e3f2fd; 
+      border-color: #2196f3;
+    }
+
+    /* Badges (Status indicators) */
+    .badge {
+      position: absolute;
+      top: -10px;
+      background: #333;
+      color: white;
+      font-size: 0.7em;
+      padding: 2px 8px;
+      border-radius: 10px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+    .badge.visible { opacity: 1; transform: translateY(0); }
+    .badge.prepared { background: #17a2b8; }
+    .badge.committed { background: var(--success-color); }
+
+    /* --- ANIMATIONS (PACKETS) --- */
+    .packet {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: var(--primary);
+      border-radius: 50%;
+      z-index: 5;
+      box-shadow: 0 0 5px var(--primary);
+    }
+    
+    /* --- LOGS TERMINAL --- */
+    .logs-panel {
+      background: #1e1e1e;
+      color: #0f0;
+      font-family: 'Consolas', monospace;
+      padding: 15px;
+      border-radius: 12px;
+      height: 150px;
+      overflow-y: auto;
+      font-size: 0.85em;
+      border: 1px solid #333;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+    .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+    .log-time { color: #888; margin-right: 10px; }
+    .log-phase { color: #ffc107; font-weight: bold; margin-right: 5px; }
+
+    /* SVG Layer */
+    svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    line {
+      stroke: #e0e0e0;
+      stroke-width: 2;
+      stroke-dasharray: 5;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Візуалізація pBFT: Візантійський Консенсус</h1>
+  <div class="subtitle">Інтерактивна модель до Лекції 1</div>
+
+  <div class="container">
+    
+    <div class="controls-panel">
+      <div class="scenario-group">
+        <label>🛠 Сценарій:</label>
+        <select id="scenarioSelect">
+          <option value="correct">✅ Нормальна робота (All Honest)</option>
+          <option value="faulty">⚠️ Атака: Один Зрадник (Byzantine Node)</option>
+        </select>
+      </div>
+      
+      <div class="btn-group">
+        <button class="reset" id="resetButton">⏮ Скинути</button>
+        <button id="nextButton">Наступний Крок ➡</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg id="connections"></svg>
+      </div>
+
+    <div class="logs-panel" id="logs">
+      <div class="log-entry"><span class="log-time">[System]</span> Ready. Waiting for client request...</div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- CONFIG & STATE ---
+    const nodesData = [
+      { id: 'client', label: 'Client', type: 'client', x: 50, y: 15 },
+      { id: 'n0', label: 'Node 0', type: 'leader', x: 50, y: 40 },
+      { id: 'n1', label: 'Node 1', type: 'replica', x: 20, y: 75 },
+      { id: 'n2', label: 'Node 2', type: 'replica', x: 50, y: 85 },
+      { id: 'n3', label: 'Node 3', type: 'replica', x: 80, y: 75 }
+    ];
+
+    let currentStep = 0;
+    let scenario = 'correct';
+    
+    // --- SCENARIOS ---
+    const stepsCorrect = [
+      {
+        phase: "REQUEST",
+        msg: "Клієнт відправляє запит Лідеру (Node 0).",
+        anim: () => sendPacket('client', ['n0'])
+      },
+      {
+        phase: "PRE-PREPARE",
+        msg: "Лідер (Node 0) пропонує блок і розсилає PRE-PREPARE всім реплікам.",
+        anim: () => {
+          sendPacket('n0', ['n1', 'n2', 'n3']);
+          setStatus('n0', 'PROPOSED');
+        }
+      },
+      {
+        phase: "PREPARE (Broadcast)",
+        msg: "Вузли перевіряють підпис Лідера. Якщо ОК — розсилають PREPARE всім іншим (Mesh).",
+        anim: () => {
+          // Mesh communication
+          sendPacket('n1', ['n0', 'n2', 'n3']);
+          sendPacket('n2', ['n0', 'n1', 'n3']);
+          sendPacket('n3', ['n0', 'n1', 'n2']);
+          // Leader also participates in standard pbft usually, but simplified here
+        }
+      },
+      {
+        phase: "PREPARED (Quorum 2f+1)",
+        msg: "Кожен вузол зібрав 2f+1 повідомлень PREPARE. Стан переходить у PREPARED.",
+        anim: () => {
+          nodesData.filter(n => n.type !== 'client').forEach(n => setBadge(n.id, 'prepared', 'PREPARED'));
+          log("Quorum reached for Prepare phase.");
+        }
+      },
+      {
+        phase: "COMMIT (Broadcast)",
+        msg: "Вузли розсилають COMMIT повідомлення, підтверджуючи готовність записати блок.",
+        anim: () => {
+          // Full mesh again
+          const ids = ['n0', 'n1', 'n2', 'n3'];
+          ids.forEach(from => {
+            const targets = ids.filter(to => to !== from);
+            sendPacket(from, targets, '#28a745'); // Green packets
+          });
+        }
+      },
+      {
+        phase: "COMMITTED",
+        msg: "Зібрано 2f+1 COMMIT повідомлень. Вузли записують блок у свій Ledger.",
+        anim: () => {
+          nodesData.filter(n => n.type !== 'client').forEach(n => setBadge(n.id, 'committed', 'COMMITTED'));
+          log("Consensus Reached. Block finalized.");
+        }
+      },
+      {
+        phase: "REPLY",
+        msg: "Вузли відправляють результат Клієнту. Клієнт чекає f+1 однакових відповідей.",
+        anim: () => {
+          sendPacket('n0', ['client'], '#28a745');
+          sendPacket('n1', ['client'], '#28a745');
+          sendPacket('n2', ['client'], '#28a745');
+          sendPacket('n3', ['client'], '#28a745');
+          log("Client received result. Transaction complete.");
+        }
+      }
+    ];
+
+    const stepsFaulty = [
+      {
+        phase: "REQUEST",
+        msg: "Клієнт відправляє запит.",
+        anim: () => {
+            sendPacket('client', ['n0']);
+            // Mark Node 3 as malicious visually
+            document.getElementById('n3').classList.add('malicious');
+            document.getElementById('n3').querySelector('.node-role').innerText = "BYZANTINE";
+            log("WARNING: Node 3 is compromised (Traitor).");
+        }
+      },
+      {
+        phase: "PRE-PREPARE",
+        msg: "Лідер розсилає пропозицію.",
+        anim: () => {
+          sendPacket('n0', ['n1', 'n2', 'n3']);
+          setStatus('n0', 'PROPOSED');
+        }
+      },
+      {
+        phase: "PREPARE (Partial)",
+        msg: "Чесні вузли шлють PREPARE. Зрадник (Node 3) мовчить або шле сміття.",
+        anim: () => {
+          sendPacket('n1', ['n0', 'n2', 'n3']);
+          sendPacket('n2', ['n0', 'n1', 'n3']);
+          // Node 3 sends nothing (or conflicting info - visualized as silence here)
+          log("Node 3 did not broadcast valid PREPARE messages.");
+        }
+      },
+      {
+        phase: "PREPARED (Resilient)",
+        msg: "Чесні вузли все одно зібрали 2f+1 (3 голоси з 4). Система стійка.",
+        anim: () => {
+          ['n0', 'n1', 'n2'].forEach(id => setBadge(id, 'prepared', 'PREPARED'));
+          // Node 3 gets no badge
+          log("Quorum (2f+1) reached despite Node 3 failure.");
+        }
+      },
+      {
+        phase: "COMMIT",
+        msg: "Чесні вузли обмінюються COMMIT.",
+        anim: () => {
+          const ids = ['n0', 'n1', 'n2']; // Exclude n3
+          ids.forEach(from => {
+            const targets = ids.filter(to => to !== from);
+            sendPacket(from, targets, '#28a745');
+          });
+        }
+      },
+      {
+        phase: "COMMITTED",
+        msg: "Чесні вузли фіксують блок. Зрадник ізольований.",
+        anim: () => {
+          ['n0', 'n1', 'n2'].forEach(id => setBadge(id, 'committed', 'COMMITTED'));
+          log("Honest nodes committed the block.");
+        }
+      },
+      {
+        phase: "REPLY",
+        msg: "Клієнт отримує 3 відповіді (достатньо). Система працює.",
+        anim: () => {
+          sendPacket('n0', ['client'], '#28a745');
+          sendPacket('n1', ['client'], '#28a745');
+          sendPacket('n2', ['client'], '#28a745');
+          log("Transaction confirmed. Fault tolerance limit: f=1 for n=4.");
+        }
+      }
+    ];
+
+    // --- ENGINE ---
+
+    function init() {
+      const stage = document.getElementById('stage');
+      const svg = document.getElementById('connections');
+      
+      // Clear
+      stage.innerHTML = '<svg id="connections"></svg>';
+      
+      // Create Nodes
+      nodesData.forEach(n => {
+        const el = document.createElement('div');
+        el.className = `node ${n.type}`;
+        el.id = n.id;
+        el.style.left = n.x + '%';
+        el.style.top = n.y + '%';
+        el.style.transform = 'translate(-50%, -50%)'; // Center pivot
+        
+        const icon = n.type === 'leader' ? '👑' : (n.type === 'client' ? '👤' : '🖥️');
+        
+        el.innerHTML = `
+          <div class="badge" id="badge-${n.id}"></div>
+          <div class="node-icon">${icon}</div>
+          <div class="node-label">${n.label}</div>
+          <div class="node-role">${n.type}</div>
+        `;
+        stage.appendChild(el);
+      });
+
+      // Draw static connections (mesh)
+      drawConnections();
+    }
+
+    function drawConnections() {
+      const svg = document.getElementById('connections');
+      svg.innerHTML = '';
+      
+      // Simple logic: connect everyone to everyone (mesh) except client
+      const servers = nodesData.filter(n => n.type !== 'client');
+      
+      // Connect Client to Leader
+      drawLine('client', 'n0', svg);
+
+      // Connect Servers Mesh
+      for(let i=0; i<servers.length; i++) {
+        for(let j=i+1; j<servers.length; j++) {
+           drawLine(servers[i].id, servers[j].id, svg);
+        }
+      }
+    }
+
+    function drawLine(id1, id2, svg) {
+      const n1 = nodesData.find(n => n.id === id1);
+      const n2 = nodesData.find(n => n.id === id2);
+      
+      // Convert % to pixels roughly for line coords (browser handles %)
+      // Actually SVG lines need specific coords. Let's use getBoundingClientRect on init? 
+      // Simpler: use % in line attributes if container is relative. 
+      // SVG coords are usually user units. Let's assume 100x100 viewbox matching %? 
+      // No, let's just use JS to map % to 100% width/height
+      
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', n1.x + '%');
+      line.setAttribute('y1', n1.y + '%');
+      line.setAttribute('x2', n2.x + '%');
+      line.setAttribute('y2', n2.y + '%');
+      svg.appendChild(line);
+    }
+
+    // --- ANIMATION ---
+
+    function sendPacket(fromId, toIds, color = '#007bff') {
+      const stage = document.getElementById('stage');
+      const fromNode = nodesData.find(n => n.id === fromId);
+      
+      toIds.forEach(toId => {
+        const toNode = nodesData.find(n => n.id === toId);
+        
+        const packet = document.createElement('div');
+        packet.className = 'packet';
+        packet.style.backgroundColor = color;
+        packet.style.boxShadow = `0 0 5px ${color}`;
+        
+        // Start pos
+        packet.style.left = fromNode.x + '%';
+        packet.style.top = fromNode.y + '%';
+        packet.style.transform = 'translate(-50%, -50%)';
+        
+        stage.appendChild(packet);
+
+        // Animate
+        const duration = 1000 + Math.random() * 500; // Random latency
+        
+        const anim = packet.animate([
+          { left: fromNode.x + '%', top: fromNode.y + '%' },
+          { left: toNode.x + '%', top: toNode.y + '%' }
+        ], {
+          duration: duration,
+          easing: 'ease-in-out',
+          fill: 'forwards'
+        });
+
+        anim.onfinish = () => packet.remove();
+      });
+    }
+
+    function setBadge(nodeId, type, text) {
+      const badge = document.getElementById(`badge-${nodeId}`);
+      badge.className = `badge ${type} visible`;
+      badge.innerText = text;
+    }
+
+    function setStatus(nodeId, text) {
+       // Simple visual cue (blink border?)
+       const el = document.getElementById(nodeId);
+       el.style.borderColor = '#007bff';
+       setTimeout(() => el.style.borderColor = '', 500);
+    }
+
+    function log(text) {
+      const panel = document.getElementById('logs');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const time = new Date().toLocaleTimeString().split(' ')[0];
+      
+      const currentStepsArr = scenario === 'correct' ? stepsCorrect : stepsFaulty;
+      const phase = currentStepsArr[currentStep] ? currentStepsArr[currentStep].phase : 'INFO';
+      
+      entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-phase">${phase}:</span> ${text}`;
+      panel.appendChild(entry);
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    // --- CONTROLLER ---
+
+    document.getElementById('nextButton').onclick = () => {
+      const steps = scenario === 'correct' ? stepsCorrect : stepsFaulty;
+      
+      if (currentStep < steps.length) {
+        const step = steps[currentStep];
+        log(step.msg);
+        step.anim();
+        currentStep++;
+      } else {
+        log("Simulation finished. Press Reset.");
+        document.getElementById('nextButton').disabled = true;
+      }
+    };
+
+    document.getElementById('resetButton').onclick = () => {
+      currentStep = 0;
+      document.getElementById('logs').innerHTML = '';
+      document.getElementById('nextButton').disabled = false;
+      init(); // Re-draw clean nodes
+      log("System Reset.");
+    };
+
+    document.getElementById('scenarioSelect').onchange = (e) => {
+      scenario = e.target.value;
+      document.getElementById('resetButton').click();
+    };
+
+    // Start
+    init();
+
+  </script>
+</body>
+</html>
