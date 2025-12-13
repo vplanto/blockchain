@@ -24,20 +24,37 @@
 
 ---
 
-## 2. Інженерна Реальність: Чому це складно?
+## 2. Еволюція Вебу: Битва Архітектур
 
-Більшість людей думають про блокчейн як про "базу даних, яку не можна хакнути".
-Інженери знають правду: блокчейн — це **найменш ефективна база даних у світі**. Вона повільна, дорога і надлишкова.
+Інженери часто плутають "блокчейн" з "повільною базою даних". Насправді це зміна моделі володіння станом (State Ownership) та стеку протоколів.
 
-### ❓ Головне питання
+### 2.1. Web2 vs Web3: Зміна Власника
+У Web2 ви **орендуєте** свій акаунт. Адміністратор бази даних може виконати `DELETE FROM users WHERE id=YOU`. Ваші дані — це актив платформи.
+У Web3 ви **володієте** ключем доступу. Ваш акаунт існує математично, незалежно від будь-якого сервера.
+
+### 2.2. Інфраструктурний Зсув (OSI Mapping)
+Ми замінюємо централізовані сервіси на криптографічні примітиви та P2P-протоколи.
+
+| Функція | Web 2.0 (Client-Server) | Web 3.0 (P2P State Machine) |
+| :--- | :--- | :--- |
+| **Application Layer** | HTTP REST / GraphQL | JSON-RPC (Eth API) |
+| **Resolution (DNS)** | DNS (`google.com` -> IP) | ENS (`vitalik.eth` -> Hash) |
+| **Identity (Auth)** | OAuth 2.0 (Google Login) / JWT | ECDSA Signatures (Wallet Connect) |
+| **Storage** | AWS S3 / PostgreSQL | IPFS / Blockchain Ledger |
+| **Network Transport** | TCP/IP (Unicast) | Libp2p / Gossipsub (Multicast) |
+| **Trust Model** | SSL Certificate (CA Authority) | Merkle Proof (Math Verification) |
+
+> **Інсайт:** Web3 не скасовує TCP/IP, він будує над ним новий шар **p2p-комунікації** (Overlay Network), де вузли рівноправні.
+
+### 2.3. Головне Інженерне Питання
 Чому ми готові платити \$50 за транзакцію в Ethereum і чекати 12 секунд, якщо Visa робить це за \$0.01 і 200 мілісекунд?
 
 <details markdown="1">
 <summary>Архітектурна відповідь</summary>
 
 Тому що Visa може **вимкнути** вас.
-* **Centralized (SQL/Visa):** Ефективність $O(1)$, але Trust = 100% (ви вірите адміну). SPoF (Single Point of Failure).
-* **Decentralized (Blockchain):** Ефективність $O(N^2)$ (через комунікацію), але Trust = 0% (Verify, don't trust). Censorship Resistance.
+* **Centralized (Web2):** Ефективність $O(1)$, але Trust = 100% (ви вірите адміну). SPoF (Single Point of Failure).
+* **Decentralized (Web3):** Ефективність $O(N^2)$ (через комунікацію), але Trust = 0% (Verify, don't trust). Censorship Resistance.
 
 Ми платимо не за швидкість. Ми платимо за **суверенітет**.
 
@@ -70,7 +87,7 @@
 
 | Рівень | Технології | Ключові слова |
 | :--- | :--- | :--- |
-| **L4: Application** | React, Web3.js | Wallets, DeFi, NFT (Те, що бачить юзер). |
+| **L4: Application (dApps)** | React, Web3.js | Wallets, DeFi, NFT (Те, що бачить юзер). |
 | **L3: Execution** | **Solidity**, EVM | Smart Contracts, Gas Limit, Bytecode. |
 | **L2: Data / Scaling** | Merkle Trees, Rollups | Linked List, Hash Functions (SHA-256). |
 | **L1: Consensus** | **PoW, PoS, pBFT** | Game Theory, Sybil Attack Resistance. |
