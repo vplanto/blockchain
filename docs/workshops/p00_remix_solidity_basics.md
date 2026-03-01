@@ -2,7 +2,7 @@
 
 **Мета:** Отримати практичний досвід: відкрити приклади контрактів у Remix, скомпілювати, задеплоїти та перевірити поведінку. Уміння читати Solidity і бачити основні концепти в коді.
 
-**Код прикладів:** папка [solidity](../../solidity/) у репозиторії курсу (від docs: `../solidity/`, від docs/workshops: `../../solidity/`).  
+**Код прикладів:** папка [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) у репозиторії курсу.  
 **Середовище:** [Remix IDE](https://remix.ethereum.org/) (онлайн, без встановлення).
 
 ---
@@ -18,8 +18,8 @@
 ## 1. Підготовка
 
 1. Відкрийте [Remix IDE](https://remix.ethereum.org/).
-2. Створіть файл у папці `contracts` (наприклад, `HelloWorld.sol`) або відкрийте файл з папки [solidity](../../solidity/) репозиторію курсу.
-3. Вставте вміст [HelloWorld_v1.sol](../../solidity/HelloWorld_v1.sol) (або скопіюйте код з лекції 5).
+2. Створіть файл у папці `contracts` (наприклад, `HelloWorld.sol`) або відкрийте файл з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) репозиторію курсу.
+3. Вставте вміст [HelloWorld_v1.sol](https://github.com/vplanto/blockchain/blob/main/solidity/HelloWorld_v1.sol) (або скопіюйте код з лекції 5).
 
 ---
 

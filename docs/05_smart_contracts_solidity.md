@@ -2,7 +2,7 @@
 
 **Мета:** Навчитися читати Solidity-код і розуміти основні концепти: стан, виклики, газ, перевірки, патерни безпеки.
 
-Практичні приклади взято з папки [solidity](../solidity/) цього репозиторію і розраховані на роботу в [Remix IDE](https://remix.ethereum.org/) (онлайн, без встановлення).
+Практичні приклади взято з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) цього репозиторію і розраховані на роботу в [Remix IDE](https://remix.ethereum.org/) (онлайн, без встановлення).
 
 ---
 
@@ -16,7 +16,7 @@
 
 ## 1. Де живуть приклади і як їх відкрити
 
-- **Код:** папка [solidity](../solidity/) у цьому репозиторії. Файли: `HelloWorld_v1.sol`, `HelloWorld_v2_SelfDestruct.sol`, `Voter_v1.sol` … `Voter_v4_VoteByString.sol`.
+- **Код:** папка [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) у цьому репозиторії. Файли: `HelloWorld_v1.sol`, `HelloWorld_v2_SelfDestruct.sol`, `Voter_v1.sol` … `Voter_v4_VoteByString.sol`.
 - **Середовище:** [Remix IDE](https://remix.ethereum.org/). Відкрийте файл (File → Open, або вставте код), виберіть компілятор (наприклад, 0.8.x), зберіть (Compile), запустіть на віртуальній ноді (Deploy у вкладці Deploy & run transactions).
 
 ---
