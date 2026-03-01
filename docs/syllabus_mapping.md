@@ -30,8 +30,8 @@
 |--------|-----------------|-----------------|
 | 11 | Мова Solidity та розробка смарт-контрактів | [Лекція 5](05_smart_contracts_solidity.md), [p00](workshops/p00_remix_solidity_basics.md) (Remix, HelloWorld, Voter) |
 | 12 | Приклади та методи побудови dApps | [Лекція 5](05_smart_contracts_solidity.md), [p00](workshops/p00_remix_solidity_basics.md); приклади коду в папці [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) |
-| 13 | NFT, невзаємозамінні токени | Планується розширення практикумів (напр. ERC-721) |
-| 14 | DeFi, осередки децентралізованих фінансів | [case_studies](case_studies.md), [p01](workshops/p01_security_checks_effects_interactions.md) (безпека) |
+| 13 | NFT, невзаємозамінні токени | [p02](workshops/p02_nft_erc721.md) (ERC-721, IPFS, Мінтер) |
+| 14 | DeFi, осередки децентралізованих фінансів | [Лекція 7](07_defi_financial_concepts.md), [case_studies](case_studies.md), [p01](workshops/p01_security_checks_effects_interactions.md) (безпека) |
 | 15 | DAO, децентралізовані автономні організації | [case_studies](case_studies.md) (The DAO), [p01](workshops/p01_security_checks_effects_interactions.md) (reentrancy, CEI) |
 
 ---

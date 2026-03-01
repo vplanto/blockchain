@@ -34,8 +34,14 @@
 ### [Лекція 5: Смарт-контракти та Solidity](./05_smart_contracts_solidity.md)
 * **Фокус:** Читання коду Solidity, стан, газ, require, патерни безпеки. Приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) та Remix IDE.
 
+### [Розбір Кейсів (Case Studies)](./case_studies.md)
+* **Фокус:** Реальні приклади зломів і вразливостей (The DAO, Parity Wallet) та вивчення помилок в архітектурі смарт-контрактів.
+
 ### [Лекція 6: Масштабування та майбутнє](./06_scaling_future.md)
 * **Фокус:** L2, rollups (optimistic та ZK), зв’язок безпеки з L1.
+
+### [Лекція 7: Децентралізовані фінанси (DeFi)](./07_defi_financial_concepts.md)
+* **Фокус:** Економіка DeFi, ಪುли ліквідності (AMM), арбітраж, кредитні плечі та флеш-кредити (Flash Loans).
 
 ---
 
@@ -46,7 +52,7 @@
 1. [p00: Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) — деплой, HelloWorld, серія Voter (v1–v4), читання коду.
 2. [p01: Безпека (reentrancy, CEI)](./workshops/p01_security_checks_effects_interactions.md) — патерн Checks-Effects-Interactions, розбір Case Studies.
 
-3. [p02: Фінансові примітиви DeFi](./workshops/p02_defi_financial_concepts.md) — розбір "на пальцях" як працюють Пули ліквідності (AMM), Арбітраж, Кредитне плече (Leverage) та Flash Loans.
+3. [p02: Архітектура NFT (ERC-721)](./workshops/p02_nft_erc721.md) — генерація колекції, мінтинг, стандарти токенів.
 
 ## Оцінювання та Індивідуальні завдання
 
