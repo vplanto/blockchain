@@ -41,7 +41,12 @@
 1. [p00: Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) — деплой, HelloWorld, серія Voter (v1–v4), читання коду.
 2. [p01: Безпека (reentrancy, CEI)](./workshops/p01_security_checks_effects_interactions.md) — патерн Checks-Effects-Interactions, розбір Case Studies.
 
-Додаткові кейси з реальних інцидентів: [case_studies](./case_studies.md).
+3. [p02: Фінансові примітиви DeFi](./workshops/p02_defi_financial_concepts.md) — розбір "на пальцях" як працюють Пули ліквідності (AMM), Арбітраж, Кредитне плече (Leverage) та Flash Loans.
+
+## Оцінювання та Індивідуальні завдання
+
+Система оцінювання курсу (100 балів) складається з поточного контролю на лекціях, курсу з блокчейн-фінансів та криптограмотності, а також 4 індивідуальних практичних завдань.
+Детальний опис завдань та критеріїв оцінювання знаходяться тут: **[Індивідуальні завдання (100 балів)](./individual_tasks.md)**.
 
 ---
 
