@@ -198,6 +198,7 @@
         <select id="scenarioSelect">
           <option value="correct">✅ Нормальна робота (All Honest)</option>
           <option value="faulty">⚠️ Атака: Один Зрадник (Byzantine Node)</option>
+          <option value="combo">🚨 Збій: Зрадник + Вимкнена Нода (Consensus Failure)</option>
         </select>
       </div>
       
@@ -318,33 +319,41 @@
         }
       },
       {
-        phase: "PREPARE (Partial)",
-        msg: "Чесні вузли шлють PREPARE. Зрадник (Node 3) мовчить або шле сміття.",
+        phase: "PREPARE (Byzantine)",
+        msg: "Чесні вузли шлють однаковий PREPARE. Зрадник (Node 3) надсилає різну брехню двом вузлам.",
         anim: () => {
           sendPacket('n1', ['n0', 'n2', 'n3']);
           sendPacket('n2', ['n0', 'n1', 'n3']);
-          // Node 3 sends nothing (or conflicting info - visualized as silence here)
-          log("Node 3 did not broadcast valid PREPARE messages.");
+          
+          // Зрадник відправляє суперечливі дані (візуалізовано різними кольорами)
+          sendPacket('n3', ['n1'], '#dc3545'); // Червоний пакет для Node 1
+          sendPacket('n3', ['n2'], '#fd7e14'); // Помаранчевий пакет для Node 2
+          
+          log("Node 3 sent contradictory PREPARE messages to Node 1 and Node 2.");
         }
       },
       {
         phase: "PREPARED (Resilient)",
-        msg: "Чесні вузли все одно зібрали 2f+1 (3 голоси з 4). Система стійка.",
+        msg: "Чесні вузли виявили суперечності від Node 3 (ігнорують їх) і зібрали 2f+1 чесних голосів. Система стійка.",
         anim: () => {
           ['n0', 'n1', 'n2'].forEach(id => setBadge(id, 'prepared', 'PREPARED'));
           // Node 3 gets no badge
-          log("Quorum (2f+1) reached despite Node 3 failure.");
+          log("Quorum (2f+1) reached despite Byzantine behavior of Node 3.");
         }
       },
       {
         phase: "COMMIT",
-        msg: "Чесні вузли обмінюються COMMIT.",
+        msg: "Чесні вузли обмінюються дійсними COMMIT. Зрадник продовжує атакувати різними повідомленнями.",
         anim: () => {
           const ids = ['n0', 'n1', 'n2']; // Exclude n3
           ids.forEach(from => {
             const targets = ids.filter(to => to !== from);
             sendPacket(from, targets, '#28a745');
           });
+          
+          // Byzantine COMMIT
+          sendPacket('n3', ['n0'], '#dc3545'); 
+          sendPacket('n3', ['n2'], '#8b00ff'); 
         }
       },
       {
@@ -363,6 +372,57 @@
           sendPacket('n1', ['client'], '#28a745');
           sendPacket('n2', ['client'], '#28a745');
           log("Transaction confirmed. Fault tolerance limit: f=1 for n=4.");
+        }
+      }
+    ];
+
+    const stepsCombo = [
+      {
+        phase: "REQUEST",
+        msg: "Клієнт відправляє запит.",
+        anim: () => {
+            sendPacket('client', ['n0']);
+            // Зрадник
+            document.getElementById('n3').classList.add('malicious');
+            document.getElementById('n3').querySelector('.node-role').innerText = "BYZANTINE";
+            // Вимкнена нода
+            document.getElementById('n2').style.filter = "grayscale(100%) opacity(0.5)";
+            document.getElementById('n2').querySelector('.node-role').innerText = "OFFLINE";
+            log("CRITICAL: Node 3 is a Traitor. Node 2 is Offline.");
+        }
+      },
+      {
+        phase: "PRE-PREPARE",
+        msg: "Лідер розсилає пропозицію. Node 2 не відповідає.",
+        anim: () => {
+          sendPacket('n0', ['n1', 'n3']); // Node 2 offline
+          setStatus('n0', 'PROPOSED');
+        }
+      },
+      {
+        phase: "PREPARE (Failed)",
+        msg: "Чесні вузли (0 і 1) очікують 2f+1=3 голоси. Зрадник (3) шле брехню, Вимкнений (2) мовчить.",
+        anim: () => {
+          sendPacket('n1', ['n0', 'n3']); // n1 to others
+          sendPacket('n3', ['n1'], '#dc3545'); // Byzantine message
+          log("Nodes 0 and 1 only have 2 honest votes (themselves).");
+        }
+      },
+      {
+        phase: "TIMEOUT",
+        msg: "Кворум не зібрано. Система зупиняється. Безпека гарантується, але доступності немає (CP).",
+        anim: () => {
+          log("CONSENSUS FAILED: Needed 3 votes, got 2. State cannot be altered.");
+        }
+      },
+      {
+        phase: "REPLY (Error)",
+        msg: "Клієнт отримує помилку (Таймаут / Відмова в обслуговуванні).",
+        anim: () => {
+          // Send red packets back to client to symbolize error/timeout
+          sendPacket('n0', ['client'], '#dc3545'); // Червоний
+          sendPacket('n1', ['client'], '#dc3545'); // Червоний
+          log("Client request DENIED. System maintains Consistency by sacrificing Availability.");
         }
       }
     ];
@@ -492,7 +552,7 @@
       entry.className = 'log-entry';
       const time = new Date().toLocaleTimeString().split(' ')[0];
       
-      const currentStepsArr = scenario === 'correct' ? stepsCorrect : stepsFaulty;
+      const currentStepsArr = scenario === 'correct' ? stepsCorrect : (scenario === 'faulty' ? stepsFaulty : stepsCombo);
       const phase = currentStepsArr[currentStep] ? currentStepsArr[currentStep].phase : 'INFO';
       
       entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-phase">${phase}:</span> ${text}`;
@@ -503,7 +563,7 @@
     // --- CONTROLLER ---
 
     document.getElementById('nextButton').onclick = () => {
-      const steps = scenario === 'correct' ? stepsCorrect : stepsFaulty;
+      const steps = scenario === 'correct' ? stepsCorrect : (scenario === 'faulty' ? stepsFaulty : stepsCombo);
       
       if (currentStep < steps.length) {
         const step = steps[currentStep];
