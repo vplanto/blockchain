@@ -4,12 +4,12 @@
 
 **Джерело:** Bitcoin Whitepaper (Satoshi Nakamoto, 2008).
 
-> **Ключові цитати з Whitepaper:**
-> | Цитата (Satoshi Nakamoto, 2008) | Інженерний сенс |
-> | :--- | :--- |
-> | *"We define an electronic coin as a chain of digital signatures."* | Монета — це не рядок у базі банку, а абстрактна послідовність криптографічних підписів попередніх власників. |
-> | *"The problem of course is the payee can't verify that one of the owners did not double-spend the coin."* | В децентралізованій системі зникає проблема "як переказати", але з'являється єдина критична проблема — гарантувати, що одна монета не витрачена двічі (Double Spend). |
-> | *"To implement a distributed timestamp server on a peer-to-peer basis, we will need to use a proof-of-work system..."* | Хешування та Proof-of-Work (PoW) використовуються не "щоб заробляти", а як децентралізований і непідробний "годинник", який фіксує порядок транзакцій у часі. |
+**Ключові цитати з Whitepaper:**
+| Цитата (Satoshi Nakamoto, 2008) | Інженерний сенс |
+| :--- | :--- |
+| *"We define an electronic coin as a chain of digital signatures."* | Монета — це не рядок у базі банку, а абстрактна послідовність криптографічних підписів попередніх власників. |
+| *"The problem of course is the payee can't verify that one of the owners did not double-spend the coin."* | В децентралізованій системі зникає проблема "як переказати", але з'являється єдина критична проблема — гарантувати, що одна монета не витрачена двічі (Double Spend). |
+| *"To implement a distributed timestamp server on a peer-to-peer basis, we will need to use a proof-of-work system..."* | Хешування та Proof-of-Work (PoW) використовуються не "щоб заробляти", а як децентралізований і непідробний "годинник", який фіксує порядок транзакцій у часі. |
 
 ---
 
