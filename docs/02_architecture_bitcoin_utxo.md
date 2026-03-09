@@ -5,6 +5,7 @@
 **Джерело:** Bitcoin Whitepaper (Satoshi Nakamoto, 2008).
 
 **Ключові цитати з Whitepaper:**
+
 | Цитата (Satoshi Nakamoto, 2008) | Інженерний сенс |
 | :--- | :--- |
 | *"We define an electronic coin as a chain of digital signatures."* | Монета — це не рядок у базі банку, а абстрактна послідовність криптографічних підписів попередніх власників. |
