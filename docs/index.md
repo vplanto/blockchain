@@ -28,8 +28,8 @@
 ### [Лекція 3: Архітектура Ethereum (EVM)](./03_architecture_ethereum_evm.md)
 * **Фокус:** Модель рахунків, EVM, газ, state trie.
 
-### [Лекція 4: Алгоритми консенсусу](./04_consensus_algorithms.md)
-* **Фокус:** PoW та PoS у деталях, finality, slashing, Nothing at Stake.
+### [Лекція 4: Алгоритми консенсусу (PoW, PoS та альтернативні)](./04_consensus_algorithms.md)
+* **Фокус:** PoW та PoS у деталях, finality, slashing, Nothing at Stake; альтернативні алгоритми (PoA, PoC, PoB, FPC, DPoS, PoR, SPECTRE) та DAG-консенсуси (Dexon, Block Lattice, BlockDAG тощо).
 
 ### [Лекція 5: Смарт-контракти та Solidity](./05_smart_contracts_solidity.md)
 * **Фокус:** Читання коду Solidity, стан, газ, require, патерни безпеки. Приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) та Remix IDE.
