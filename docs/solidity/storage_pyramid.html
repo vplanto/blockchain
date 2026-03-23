@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Storage Pyramid</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --text: #e6edf3;
+            --stack-color: #ff7b72;
+            --calldata-color: #d2a8ff;
+            --memory-color: #79c0ff;
+            --storage-color: #3fb950;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #e6edf3, #8b949e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: #8b949e;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        /* Side-by-side Layout */
+        .main-content {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            gap: 40px;
+            align-items: stretch;
+            margin-top: 20px;
+        }
+
+        .chart-container {
+            flex: 1; /* Left side */
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            position: relative;
+            min-height: 500px;
+        }
+
+        /* Axes */
+        .y-axis {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 40px;
+            width: 2px;
+            background: linear-gradient(to top, rgba(255,255,255,0.1), rgba(255,255,255,0.5));
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .y-axis::before {
+            content: 'Вартість (Gas)';
+            position: absolute;
+            top: -30px;
+            left: -40px;
+            color: #8b949e;
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .x-axis {
+            position: absolute;
+            left: 0;
+            bottom: 40px;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(to right, rgba(255,255,255,0.1), rgba(255,255,255,0.5));
+        }
+        .x-axis::after {
+            content: 'Місткість / Життєвий цикл';
+            position: absolute;
+            right: 0;
+            bottom: -30px;
+            color: #8b949e;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Pyramid Layers */
+        .pyramid {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            position: absolute;
+            bottom: 42px;
+            left: 20px;
+        }
+
+        .layer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            box-sizing: border-box;
+            border: 2px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 5px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .layer:hover {
+            transform: scale(1.03);
+            filter: brightness(1.2);
+            z-index: 10;
+        }
+
+        /* Specific layer sizes and colors */
+        .layer-stack {
+            width: 20%;
+            height: 60px;
+            background: linear-gradient(135deg, rgba(255,123,114,0.8), rgba(200,50,50,0.8));
+            border-radius: 8px 8px 0 0;
+            border-color: var(--stack-color);
+        }
+
+        .layer-calldata {
+            width: 45%;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(210,168,255,0.8), rgba(150,100,200,0.8));
+            border-color: var(--calldata-color);
+        }
+
+        .layer-memory {
+            width: 75%;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(121,192,255,0.8), rgba(50,120,200,0.8));
+            border-color: var(--memory-color);
+        }
+
+        .layer-storage {
+            width: 100%;
+            height: 140px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" opacity="0.1"><rect width="20" height="20" fill="%23000"/><path d="M0 0h20v2H0zm0 10h20v2H0zM10 0v20h2V0z" fill="%23fff"/></svg>'), linear-gradient(135deg, rgba(63,185,80,0.9), rgba(30,100,40,0.9));
+            border-radius: 0 0 8px 8px;
+            border-color: var(--storage-color);
+            border-width: 3px;
+            border-bottom-width: 8px; /* Granite feel */
+        }
+
+        /* Info Panel (Right side) */
+        .info-panel {
+            flex: 1; /* Right side */
+            background: rgba(22, 27, 34, 0.7);
+            border: 1px solid rgba(48, 54, 61, 0.6);
+            border-radius: 12px;
+            padding: 30px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .info-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .info-desc {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+            margin-bottom: 25px;
+        }
+
+        .badge {
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Code Examples Formatting */
+        .code-container {
+            background: #0d1117;
+            border-radius: 8px;
+            border: 1px solid var(--border, #30363d);
+            overflow: hidden;
+            margin-top: auto; /* Push to bottom if space available */
+        }
+
+        .code-header {
+            background: #161b22;
+            padding: 8px 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #8b949e;
+            border-bottom: 1px solid #30363d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        pre {
+            margin: 0;
+            padding: 15px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .keyword { color: #ff7b72; }
+        .type { color: #ff7b72; }
+        .function { color: #d2a8ff; }
+        .comment { color: #8b949e; }
+        .opcodes { color: #79c0ff; font-weight: 800; }
+
+        .default-text {
+            color: #8b949e;
+            text-align: center;
+            font-style: italic;
+            margin: auto 0;
+            font-size: 1.2rem;
+        }
+
+        /* Media Query context for smaller screens */
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .chart-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Піраміда Пам'яті та Вартості</h1>
+        <p class="subtitle">Ієрархія пам'яті в EVM. Вертикаль — ціна операцій, горизонталь — місткість і життя даних.</p>
+    </div>
+
+    <div class="main-content">
+        <!-- Left Side: Pyramid -->
+        <div class="chart-container">
+            <div class="y-axis"></div>
+            <div class="x-axis"></div>
+            
+            <div class="pyramid">
+                <div class="layer layer-stack" onmouseover="showInfo('stack')" onclick="showInfo('stack')">Stack</div>
+                <div class="layer layer-calldata" onmouseover="showInfo('calldata')" onclick="showInfo('calldata')">Calldata</div>
+                <div class="layer layer-memory" onmouseover="showInfo('memory')" onclick="showInfo('memory')">Memory</div>
+                <div class="layer layer-storage" onmouseover="showInfo('storage')" onclick="showInfo('storage')">Storage<br/><small style="font-size: 0.8rem; font-weight: 400; opacity: 0.8;">(Гранітна плита)</small></div>
+            </div>
+        </div>
+
+        <!-- Right Side: Info Panel -->
+        <div class="info-panel" id="infoPanel">
+            <div class="default-text">👈 Наведіть або натисніть на відповідний рівень піраміди, щоб побачити деталі та приклади коду.</div>
+        </div>
+    </div>
+
+    <script>
+        // Highlighting helper functions to render fake-Solidity
+        function highlight(codeStr) {
+            return codeStr
+                .replace(/\/\/(.*)/g, '<span class="comment">//$1</span>')
+                .replace(/(contract|function|public|private|internal|external|view|pure|returns|return)/g, '<span class="keyword">$1</span>')
+                .replace(/\b(uint|uint256|int|bool|address|string|bytes)\b/g, '<span class="type">$1</span>')
+                .replace(/\b([a-zA-Z_0-9]+)\(/g, '<span class="function">$1</span>(')
+                .replace(/\b(calldata|memory|storage)\b/g, '<span style="color: inherit; font-weight: 800; text-decoration: underline;">$1</span>')
+                .replace(/\[\+([0-9k]+) Gas\]/g, '<b style="color:#d4db1c;">[+$1 Gas]</b>')
+                .replace(/\[Opcodes: (.*?)\]/g, '<span class="opcodes">[Opcodes: $1]</span>');
+        }
+
+        const data = {
+            stack: {
+                title: "Stack (Регістри)",
+                color: "var(--stack-color)",
+                lifecycle: "Scope функції",
+                gas: "Найдешевше",
+                desc: "Візуалізується як 'вузьке горло'. EVM є машиною на основі стеку з жорстким обмеженням (до 1024 глибини, але доступ лише до верхніх 16). Базові типи значень (uint, bool) автоматично складаються у стек. Якщо змінних забагато: <code>CompilerError: Stack too deep</code>.",
+                code: `function math() public pure returns (uint) {
+    uint a = 2; // Зберігається у Stack
+    uint b = 3; 
+
+    // POP a, POP b, MUL, PUSH c [Opcodes: MUL]
+    uint c = a * b; 
+
+    return c;
+}`
+            },
+            calldata: {
+                title: "Calldata (Буфер)",
+                color: "var(--calldata-color)",
+                lifecycle: "Час транзакції",
+                gas: "Дуже дешево",
+                desc: "Read-only (незмінна) область пам'яті, де лежать аргументи зовнішніх (external) викликів. Завдяки уникненню копіювання масивів та рядків у Memory, це значно економить газ для параметрів функцій.",
+                code: `// Найкращий патерн для read-only аргументів
+function check(string calldata myStr) external pure returns (bool) {
+    // Дані читаються напряму з транзакції [Opcodes: CALLDATALOAD]
+    // myStr = "new"; // Помилка компіляції: calldata є незмінним
+    return bytes(myStr).length > 0;
+}`
+            },
+            memory: {
+                title: "Memory (Робочий стіл)",
+                color: "var(--memory-color)",
+                lifecycle: "Час виклику",
+                gas: "Середня (від 3 газу)",
+                desc: "Тимчасовий RAM для внутрішньої ініціалізації та копіювання об'єктів (масивів, структур, рядків). Після завершення виклику пам'ять повністю очищується. Вартість розширення пам'яті зростає квадратично, тому не варто обробляти величезні масиви.",
+                code: `function processData(uint[] calldata extArr) public {
+    // Створення масиву в пам'яті (розмір фіксується)
+    uint[] memory tmp = new uint[](extArr.length); 
+
+    // MLOAD (читання) з calldata, MSTORE (запис) у memory
+    tmp[0] = extArr[0]; // [+3 Gas (приблизно)]
+}`
+            },
+            storage: {
+                title: "Storage (Фундамент)",
+                color: "var(--storage-color)",
+                lifecycle: "Перманентно (Назавжди)",
+                gas: "Дорого (до 20k)",
+                desc: "Справжня 'гранітна плита' блокчейну. Кожен запис назавжди зберігається на накопичувачах усіх вузлів мережі. Це найцінніший архітектурний ресурс; оптимізація смарт-контрактів завжди зводиться до мінімізації непотрібних записів у Storage.",
+                code: `contract StorageExample {
+    uint public counter; // Перманентний стан у Storage
+
+    function increment() public {
+        // Читання: SLOAD [Opcodes: SLOAD (+2.1k Gas)]
+        // Запис: SSTORE [Opcodes: SSTORE (+20k Gas)]
+        counter++; 
+    }
+}`
+            }
+        };
+
+        function showInfo(type) {
+            const info = data[type];
+            const panel = document.getElementById('infoPanel');
+            const highlightedCode = highlight(info.code);
+
+            panel.innerHTML = `
+                <div class="info-title" style="color: ${info.color}">
+                    ${info.title}
+                    <span class="badge" style="border: 1px solid ${info.color}">${info.lifecycle}</span>
+                    <span class="badge" style="background: ${info.color}; color: #000; font-weight: 800;">${info.gas}</span>
+                </div>
+                <div class="info-desc">${info.desc}</div>
+                
+                <div class="code-container" style="border-color: ${info.color}40">
+                    <div class="code-header" style="color: ${info.color}">💻 Solidity Code & Opcodes</div>
+                    <pre><code>${highlightedCode}</code></pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

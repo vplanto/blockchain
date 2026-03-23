@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Алгоритми консенсусу: Паливо та Логіка</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-main: #e6edf3;
+            --text-muted: #8b949e;
+            --physics-color: #ff7b72;
+            --capital-color: #79c0ff;
+            --identity-color: #d2a8ff;
+            --math-color: #a5d6ff;
+            --card-bg: rgba(22, 27, 34, 0.7);
+            --card-border: rgba(48, 54, 61, 0.6);
+            --hover-border: rgba(139, 148, 158, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            line-height: 1.6;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(255, 123, 114, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(121, 192, 255, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 50% 80%, rgba(210, 168, 255, 0.05) 0%, transparent 25%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #e6edf3, #8b949e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .category-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+        }
+
+        .category-card[data-type="physics"]::before { background: var(--physics-color); }
+        .category-card[data-type="capital"]::before { background: var(--capital-color); }
+        .category-card[data-type="identity"]::before { background: var(--identity-color); }
+        .category-card[data-type="math"]::before { background: var(--math-color); }
+
+        .category-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--hover-border);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+
+        .category-card.active {
+            border-color: #fff;
+            transform: scale(1.02);
+        }
+
+        .category-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+
+        .category-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .category-card[data-type="physics"] .category-title { color: var(--physics-color); }
+        .category-card[data-type="capital"] .category-title { color: var(--capital-color); }
+        .category-card[data-type="identity"] .category-title { color: var(--identity-color); }
+        .category-card[data-type="math"] .category-title { color: var(--math-color); }
+
+        .category-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            flex-grow: 1;
+        }
+
+        .algos-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .algo-tag {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Detail Panel */
+        .detail-panel {
+            display: none;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 32px;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .detail-panel.visible {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .detail-header {
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .detail-mechanic {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mechanic-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .algo-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 768px) {
+            .algo-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .algo-card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .algo-card h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .algo-desc {
+            font-size: 0.95rem;
+            color: var(--text-main);
+            margin-bottom: 16px;
+        }
+
+        .case-study {
+            background: rgba(88, 166, 255, 0.05);
+            border-left: 3px solid #58a6ff;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .case-study strong {
+            color: #58a6ff;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>4 Архітектури Консенсусу</h1>
+        <p class="subtitle">Розподіл за типом «палива» – основного ресурсу, який забезпечує безпеку та роботу блокчейну. Оберіть категорію, щоб дізнатися деталі та кейси.</p>
+    </header>
+
+    <div class="grid" id="categoryGrid">
+        <div class="category-card" data-type="physics">
+            <div class="category-icon">⚡</div>
+            <div class="category-title">Physics & Hardware</div>
+            <div class="category-desc">Консенсус через «спалення» зовнішнього ресурсу (енергія, простір, гроші).</div>
+            <div class="algos-tags">
+                <span class="algo-tag">PoW</span>
+                <span class="algo-tag">PoST</span>
+                <span class="algo-tag">PoB</span>
+            </div>
+        </div>
+
+        <div class="category-card" data-type="capital">
+            <div class="category-icon">💰</div>
+            <div class="category-title">Capital & Economy</div>
+            <div class="category-desc">Консенсус через заставу та штраф внутрішнього ресурсу (монети).</div>
+            <div class="algos-tags">
+                <span class="algo-tag">PoS</span>
+                <span class="algo-tag">LPoS</span>
+            </div>
+        </div>
+
+        <div class="category-card" data-type="identity">
+            <div class="category-icon">🏛️</div>
+            <div class="category-title">Identity & Politics</div>
+            <div class="category-desc">Консенсус через обмежену кількість учасників (делегати, авторитети).</div>
+            <div class="algos-tags">
+                <span class="algo-tag">PoA</span>
+                <span class="algo-tag">DPoS</span>
+                <span class="algo-tag">PoV</span>
+            </div>
+        </div>
+
+        <div class="category-card" data-type="math">
+            <div class="category-icon">🕸️</div>
+            <div class="category-title">Math & Topology</div>
+            <div class="category-desc">Консенсус через структуру графа та ймовірнісні опитування.</div>
+            <div class="algos-tags">
+                <span class="algo-tag">DAG</span>
+                <span class="algo-tag">FPC</span>
+                <span class="algo-tag">SPECTRE</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailPanelContainer"></div>
+</div>
+
+<script>
+    const data = {
+        physics: {
+            title: "Physics & Hardware",
+            mechanic: "Доказ володіння рідкісним фізичним активом.",
+            algorithms: [
+                {
+                    name: "Proof of Work (PoW)",
+                    desc: "Майнер підбирає nonce так, щоб хеш заголовка блоку був менший за ціль (target). Щоб переписати історію, треба мати більшу обчислювальну потужність, ніж чесна мережа. Що дорого: енергія та обладнання.",
+                    case: "Атака 51% на Ethereum Classic. PoW гарантує безпеку лише тоді, коли вартість атаки (оренда або купівля обладнання) значно перевищує можливий прибуток. Для мікро-капіталізованих PoW-монет безпека є ілюзорною."
+                },
+                {
+                    name: "Proof of Space and Time (PoST)",
+                    desc: "Валідатор виділяє обсяг дискового простору (HDD/SSD). Для захисту додається Time — Verifiable Delay Function (VDF), який гарантує, що пройшов певний реальний час.",
+                    case: "Chia (Зелений майнінг). «Фермери» заздалегідь заповнюють HDD випадковими даними (plots). Дозволяє майнити з мінімальним споживанням енергії."
+                },
+                {
+                    name: "Proof of Burn (PoB)",
+                    desc: "Учасник «спалює» монети (надсилає їх на адресу, з якої неможливо вивести). Це доводить готовність пожертвувати активами для отримання права на майнінг або стейкінг.",
+                    case: "Slimcoin та Counterparty (XCP). Одноразовий розподіл токенів без ICO для тих, хто спалив BTC."
+                }
+            ]
+        },
+        capital: {
+            title: "Capital & Economy",
+            mechanic: "Slashing та економічне покарання за візантійську поведінку.",
+            algorithms: [
+                {
+                    name: "Proof of Stake (PoS)",
+                    desc: "Валідатори блокують монети (stake). Право пропонувати блок залежить від частки стейку. Якщо валідатор порушує правила (подвійне підписання), його депозит спалюється (slashing).",
+                    case: "The Merge в Ethereum та ризик картельної централізації (Lido). Lido та кілька бірж почали контролювати понад 50% валідаторів. Якщо уряди змусять їх цензурувати транзакції, вони теоретично зможуть нав'язати це всій мережі."
+                },
+                {
+                    name: "Leased Proof of Stake (LPoS)",
+                    desc: "Користувачі можуть «здавати в оренду» (lease) свої монети повним вузлам. Монети залишаються в гаманці власника, але їхня «вага» додається до потужності вузла.",
+                    case: "Waves. Це дозволило звичайним користувачам отримувати пасивний дохід і підтримувати безпеку мережі без необхідності тримати власний сервер 24/7."
+                }
+            ]
+        },
+        identity: {
+            title: "Identity & Politics",
+            mechanic: "Репутаційні ризики та високий TPS за рахунок централізації.",
+            algorithms: [
+                {
+                    name: "Proof of Authority (PoA)",
+                    desc: "Право пропонувати блоки мають лише перелічені, перевірені вузли. Ідентичність валідатора прив’язана до реальної особи або організації. Застава — не гроші й не енергія, а репутація.",
+                    case: "VeChain та корпоративні ланцюги. Authority Masternodes — обрані організації (компанії, аудитори). Використовується для управління ланцюгами постачання (наприклад, DHL)."
+                },
+                {
+                    name: "Delegated Proof of Stake (DPoS)",
+                    desc: "Тримачі монет голосують за обмежену кількість делегатів (block producers). Лише обрані делегати по черзі пропонують блоки. Якщо поводиться погано, його «знімають» голосуванням.",
+                    case: "EOS (21 делегат) та TRON (27 делегатів). Висока TPS, але соціальна та політична централізація є головним ризиком: кілька великих гравців контролюють більшість місць."
+                },
+                {
+                    name: "Proof of Validatory (PoV)",
+                    desc: "Транзакції перевіряються спеціальною групою валідаторів з підтвердженою ідентичністю або високим рівнем довіри (для консорціумних мереж).",
+                    case: "Devvio та державні консорціуми. Використовується для обробки мільйонів транзакцій за секунду в закритих екосистемах (наприклад, CBDC)."
+                }
+            ]
+        },
+        math: {
+            title: "Math & Topology",
+            mechanic: "Відмова від лінійності для паралелізму.",
+            algorithms: [
+                {
+                    name: "Directed Acyclic Graph (DAG)",
+                    desc: "Орієнтований ациклічний граф. На відміну від одного ланцюга, блок може посилатися на кілька попередніх блоків, що дозволяє паралельно створювати багато блоків без «сирітських» відкидань.",
+                    case: "Nano (Block Lattice) та Conflux (Tree-Graph). Nano показує вразливість до спаму без комісій, а Conflux вдало вплітає конкуруючі блоки в робочу мережу."
+                },
+                {
+                    name: "Fast Probabilistic Consensus (FPC)",
+                    desc: "Протокол ймовірнісного консенсусу: вузли багато разів опитують випадкову вибірку інших вузлів щодо бінарного вибору. Система швидко сходиться до однієї думки.",
+                    case: "IOTA (Tangle). IOTA використовує DAG транзакцій та FPC-подібні механіки для узгодження стану та захисту від атак, намагаючись відмовитися від централізованого Координатора."
+                },
+                {
+                    name: "SPECTRE & GhostDAG",
+                    desc: "Протокол консенсусу на основі DAG блоків. Кожен новий блок посилається на кілька попередніх. Порядок визначається рекурсивними виборами між блоками.",
+                    case: "Kaspa та GhostDAG. Блоки утворюють DAG, порядок визначається топологічно. Досягає >10 блоків на секунду на звичайному PoW-майнінгу, відродивши інтерес до ASIC-майнінгу."
+                }
+            ]
+        }
+    };
+
+    const cards = document.querySelectorAll('.category-card');
+    const container = document.getElementById('detailPanelContainer');
+
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            // Remove active class from all
+            cards.forEach(c => c.classList.remove('active'));
+            // Add to clicked
+            card.classList.add('active');
+
+            const type = card.getAttribute('data-type');
+            const info = data[type];
+
+            let algosHTML = info.algorithms.map(algo => `
+                <div class="algo-card">
+                    <h3>${algo.name}</h3>
+                    <div class="algo-desc">${algo.desc}</div>
+                    <div class="case-study">
+                        <strong>Кейс-стаді:</strong>
+                        ${algo.case}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="detail-panel visible">
+                    <div class="detail-header">
+                        <div class="detail-mechanic">
+                            <span class="mechanic-badge">Core Mechanic</span>
+                            ${info.mechanic}
+                        </div>
+                    </div>
+                    <div class="algo-grid">
+                        ${algosHTML}
+                    </div>
+                </div>
+            `;
+            
+            // Scroll to view if on mobile
+            if(window.innerWidth < 768) {
+                container.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
