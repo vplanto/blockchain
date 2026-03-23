@@ -407,9 +407,8 @@
             
             // Move cursor
             execCursor.style.opacity = '1';
-            // Each line is ~28px height (with padding 4px top/bottom)
             const topOffset = (lineNum - 1) * 28 + 4; 
-            execCursor.style.transform = `translateY(${topOffset}px)`;
+            execCursor.style.transform = "translateY(" + topOffset + "px)";
         }
 
         async function runSimulation(isSuccess) {
@@ -421,9 +420,9 @@
             const startBal = isSuccess ? 10 : 2; 
             const afterBal = startBal - 5;
             
-            document.getElementById('stateAData').innerHTML = `balance: ${startBal}<br/>val: 0`;
+            document.getElementById('stateAData').innerHTML = "balance: " + startBal + "<br/>val: 0";
             document.getElementById('stateBData').innerHTML = isSuccess ? "balance: 5<br/>val: 42" : "Не збережено";
-            movingData.innerHTML = `balance: ${startBal}<br/>val: 0`;
+            movingData.innerHTML = "balance: " + startBal + "<br/>val: 0";
 
             // Reset Animation Data
             setGas(100, 21000);
@@ -433,7 +432,7 @@
             document.querySelectorAll('.opcode').forEach(el => el.className = 'opcode');
             
             highlightLine(1);
-            infoText.innerHTML = "Транзакція ініціюється. Курсор виконання переходить до `updateStatus()`.";
+            infoText.innerHTML = "Транзакція ініціюється. Курсор виконання переходить до updateStatus().";
             await sleep(1000);
 
             // Statement 1: val = 42;
@@ -443,7 +442,7 @@
             document.getElementById('op1').classList.add('active');
             
             setGas(60, 12600);
-            movingData.innerHTML = `balance: ${startBal}<br/><span style='color:var(--gas-color)'>val: 42</span>`;
+            movingData.innerHTML = "balance: " + startBal + "<br/><span style='color:var(--gas-color)'>val: 42</span>";
             movingData.style.background = 'rgba(255,152,0,0.1)';
             
             await sleep(1200);
@@ -457,7 +456,7 @@
             document.getElementById('op2').classList.add('active');
             
             setGas(35, 7350);
-            movingData.innerHTML = `<span style='color:var(--gas-color)'>balance: ${afterBal}</span><br/>val: 42`;
+            movingData.innerHTML = "<span style='color:var(--gas-color)'>balance: " + afterBal + "</span><br/>val: 42";
             movingData.style.background = 'rgba(255,152,0,0.1)';
             
             await sleep(1200);
@@ -474,7 +473,7 @@
                 reqOpcode.innerText = 'REQUIRE Pass';
                 reqOpcode.classList.add('active');
                 
-                infoText.innerHTML = "<b>[Рядок 4]:</b> Умова `require(5 >= 0)` успішно пройдена!";
+                infoText.innerHTML = "<b>[Рядок 4]:</b> Умова require(5 >= 0) успішно пройдена!";
                 setGas(30, 6300);
                 await sleep(1000);
                 
@@ -490,7 +489,7 @@
                 reqOpcode.innerText = 'REQUIRE Fail';
                 reqOpcode.classList.add('failed');
                 
-                infoText.innerHTML = `<b>[Рядок 4]:</b> ❌ Помилка! <code>require(${afterBal} >= 0)</code> не виконалась! Ініційовано REVERT!`;
+                infoText.innerHTML = "<b>[Рядок 4]:</b> ❌ Помилка! <code>require(" + afterBal + " >= 0)</code> не виконалась! Ініційовано REVERT!";
                 movingState.classList.add('error');
                 setGas(10, 2100); // Gas burned up to the error point
                 await sleep(1200);
@@ -498,7 +497,7 @@
                 // Revert Spring back
                 spring.classList.add('active');
                 movingState.style.transform = 'translateX(0px)';
-                movingData.innerHTML = `balance: ${startBal}<br/>val: 0`; // Reverted state
+                movingData.innerHTML = "balance: " + startBal + "<br/>val: 0"; // Reverted state
                 movingState.classList.remove('error');
                 
                 await sleep(800);
