@@ -34,6 +34,9 @@
 ### [Лекція 5: Смарт-контракти та Solidity](./05_smart_contracts_solidity.md)
 * **Фокус:** Читання коду Solidity, стан, газ, require, патерни безпеки. Приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) та Remix IDE.
 
+### [Лекція 5.5: Сучасна екосистема (dApps)](./05_1_modern_dapps_ecosystem.md)
+* **Фокус:** Layer 2 (L2), Foundry, Proxy-патерни, інтеграція фронтенду (Provider/Signer) та стандарти токенів (ERC-20, ERC-721).
+
 ### [Розбір Кейсів (Case Studies)](./case_studies.md)
 * **Фокус:** Реальні приклади зломів і вразливостей (The DAO, Parity Wallet) та вивчення помилок в архітектурі смарт-контрактів.
 
@@ -47,12 +50,13 @@
 
 ## Практикуми (Workshops)
 
-Практичний досвід: робота з кодом у Remix IDE, приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity).
+Практичний досвід: від перших кроків у Remix IDE до професійного локального середовища Foundry.
 
 1. [p00: Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) — деплой, HelloWorld, серія Voter (v1–v4), читання коду.
 2. [p01: Безпека (reentrancy, CEI)](./workshops/p01_security_checks_effects_interactions.md) — патерн Checks-Effects-Interactions, розбір Case Studies.
-
 3. [p02: Архітектура NFT (ERC-721)](./workshops/p02_nft_erc721.md) — генерація колекції, мінтинг, стандарти токенів.
+4. [p03: Самостійні завдання (15 кейсів)](./workshops/p03_solidity_individual_tasks.md) — збірка нетривіальних практичних завдань для реалізації в Remix IDE.
+5. [p04: Foundry — локальне середовище](./workshops/p04_foundry_local_dev.md) — встановлення Foundry, автоматичні тести на Solidity, fuzz-тестування, скрипти деплою, форк мережі.
 
 ## Оцінювання та Індивідуальні завдання
 
