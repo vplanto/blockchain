@@ -20,6 +20,7 @@
 1. Відкрийте [Remix IDE](https://remix.ethereum.org/).
 2. Створіть файл у папці `contracts` (наприклад, `HelloWorld.sol`)
 3. Вставте наступний базовий код смарт-контракту в редактор:
+
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
