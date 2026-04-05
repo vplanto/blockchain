@@ -34,11 +34,14 @@
 ### [Лекція 5: Смарт-контракти та Solidity](./05_smart_contracts_solidity.md)
 * **Фокус:** Читання коду Solidity, стан, газ, require, патерни безпеки. Приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) та Remix IDE.
 
+### [Розбір Кейсів (Case Studies)](./case_studies.md)
+* **Фокус:** Реальні приклади зломів і вразливостей (The DAO, Parity Wallet). Вивчається одразу після Лекції 5 як історичний контекст вразливостей смарт-контрактів.
+
+### [Практикум: Безпека та Інваріанти (p01)](./workshops/p01_security_checks_effects_interactions.md)
+* **Фокус:** Аналітика шкідливого коду (Honeypots), патерн Checks-Effects-Interactions (CEI) як захист стейт-машини, та "One-Click CTF" експлойти. Логічне продовження після Case Studies.
+
 ### [Лекція 5.5: Сучасна екосистема (dApps)](./05_1_modern_dapps_ecosystem.md)
 * **Фокус:** Layer 2 (L2), Foundry, Proxy-патерни, інтеграція фронтенду (Provider/Signer) та стандарти токенів (ERC-20, ERC-721).
-
-### [Розбір Кейсів (Case Studies)](./case_studies.md)
-* **Фокус:** Реальні приклади зломів і вразливостей (The DAO, Parity Wallet) та вивчення помилок в архітектурі смарт-контрактів.
 
 ### [Лекція 6: Масштабування та майбутнє](./06_scaling_future.md)
 * **Фокус:** L2, rollups (optimistic та ZK), зв’язок безпеки з L1.

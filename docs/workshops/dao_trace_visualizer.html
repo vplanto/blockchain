@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The DAO Hack: Trace Visualizer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.1) 0%, transparent 20%),
+                              radial-gradient(circle at 90% 80%, rgba(239, 68, 68, 0.1) 0%, transparent 20%);
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .instructions {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            max-width: 500px;
+            line-height: 1.4;
+            margin-top: 0.5rem;
+        }
+
+        .stats {
+            text-align: right; 
+            background: rgba(0,0,0,0.4); 
+            padding: 1rem 1.5rem; 
+            border-radius: 8px; 
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        #stolen-counter {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-block;
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+            transition: all 0.3s;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .pause-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-main);
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .pause-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .stack-panel {
+            flex: 1;
+        }
+
+        .trace-panel {
+            flex: 2;
+        }
+
+        .content {
+            padding: 1rem;
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* Log Line Styles */
+        .log-line {
+            padding: 0.4rem 0.6rem;
+            margin-bottom: 0.3rem;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            gap: 1rem;
+            animation: slideIn 0.3s ease-out;
+            opacity: 0.9;
+        }
+
+        .log-line:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 0.9; transform: translateX(0); }
+        }
+
+        .log-line .depth { color: var(--text-muted); width: 40px; }
+        .log-line .type { width: 70px; font-weight: 600; }
+        .log-line .details { flex: 1; color: var(--text-main); }
+        .log-line .gas { width: 60px; text-align: right; color: var(--warning); opacity: 0.8;}
+
+        .type-CALL { color: var(--accent); }
+        .type-SSTORE { color: var(--warning); }
+        .type-SLOAD { color: var(--success); }
+        .type-FALLBACK { color: var(--danger); font-weight: 800; text-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+
+        /* Stack Frame Styles */
+        .stack-frame {
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background: rgba(0,0,0,0.3);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .frame-depth { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+        .frame-func { font-weight: 600; color: var(--text-main); }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: var(--panel-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            max-width: 500px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+        }
+
+        .modal-desc {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .modal-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .modal.success { border-top: 4px solid var(--success); }
+        .modal.success .modal-icon { color: var(--success); }
+        
+        .modal.error { border-top: 4px solid var(--danger); }
+        .modal.error .modal-icon { color: var(--danger); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>The DAO Hack: Trace Visualizer</h1>
+            <div class="instructions">
+                Завдання: Спостерігайте за логами байткоду та знайдете момент, де функція <b>викликала саму себе до оновлення стану</b> (повторний вхід). Клікніть на цей рядок у логах. Для зручності ви можете зупинити лог.
+            </div>
+        </div>
+        <div class="stats">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Втрачено коштів (через Reentrancy)</div>
+            <div id="stolen-counter" style="color: var(--danger); font-weight: 800; font-size: 1.8rem; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">0 ETH</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="panel stack-panel">
+            <div class="panel-header">
+                <div class="header-left">
+                    Call Stack (EVM)
+                </div>
+            </div>
+            <div class="content" id="stack-container">
+                <!-- Stack frames inserted via JS -->
+            </div>
+        </div>
+
+        <div class="panel trace-panel">
+            <div class="panel-header">
+                <div class="header-left">
+                    <div class="indicator" id="stream-indicator"></div>
+                    Transaction Trace Stream (Live)
+                </div>
+                <button class="pause-btn" id="pause-btn" onclick="togglePause()">⏸ Пауза</button>
+            </div>
+            <div class="content" id="log-container">
+                <!-- Logs inserted via JS -->
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-icon" id="modal-icon">✗</div>
+            <div class="modal-title" id="modal-title">Неправильно</div>
+            <div class="modal-desc" id="modal-desc">
+                Це не те місце. Зверніть увагу на момент, коли керування повертається назад у вразливий смарт-контракт після виклику `fallback` атакуючого, але до оновлення `SSTORE`.
+            </div>
+            <button class="modal-btn" onclick="closeModal()">Продовжити пошук</button>
+        </div>
+    </div>
+
+    <script>
+        const logContainer = document.getElementById('log-container');
+        const stackContainer = document.getElementById('stack-container');
+        const overlay = document.getElementById('modal-overlay');
+        const modal = document.getElementById('modal');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+
+        let isPaused = false;
+        let isSimPaused = false;
+        let hackFound = false;
+        let stolenEth = 0;
+
+        function togglePause() {
+            isSimPaused = !isSimPaused;
+            const btn = document.getElementById('pause-btn');
+            const ind = document.getElementById('stream-indicator');
+            if (isSimPaused) {
+                btn.innerHTML = '▶ Відтворити';
+                ind.style.animation = 'none';
+                ind.style.background = 'var(--warning)';
+                ind.style.boxShadow = '0 0 10px var(--warning)';
+            } else {
+                btn.innerHTML = '⏸ Пауза';
+                ind.style.animation = 'pulse 2s infinite';
+                ind.style.background = 'var(--success)';
+                ind.style.boxShadow = '0 0 10px var(--success)';
+                processNext();
+            }
+        }
+
+        // Auto pause on trace panel hover
+        const tracePanel = document.querySelector('.trace-panel');
+        tracePanel.addEventListener('mouseenter', () => {
+            if (!isSimPaused) togglePause();
+        });
+        tracePanel.addEventListener('mouseleave', () => {
+            if (isSimPaused && !hackFound && !isPaused) togglePause();
+        });
+
+        // Simulate The DAO Reentrancy sequence with 'legit' disguises
+        const traceSequence = [
+            // User initiates transaction (looks legitimate)
+            { depth: "0", type: "CALL", details: "Proxy.execute()", gas: "2M", isVuln: false, stack: ["Tx Origin (EOA)", "Proxy.execute()"] },
+            { type: "delay", ms: 400 },
+            { depth: "1", type: "CALL", details: "InvestmentFund.processQueue()", gas: "1.95M", isVuln: false, stack: ["Tx Origin (EOA)", "Proxy.execute()", "InvestmentFund.processQueue()"] },
+            { type: "delay", ms: 600 },
+            
+            // Call to the DAO
+            { depth: "2", type: "CALL", details: "DAO.withdraw()", gas: "1.9M", isVuln: false, stack: ["Tx Origin (EOA)", "Proxy.execute()", "InvestmentFund.processQueue()", "DAO.withdraw()"] },
+            { type: "delay", ms: 400 },
+            { depth: "3", type: "SLOAD", details: "balances[0x8f1...3c] -> 100 ETH", gas: "800", isVuln: false, stack: null },
+            { type: "delay", ms: 400 },
+            { depth: "3", type: "CALL", details: "msg.sender.call{value: 100 ETH}()", gas: "40k", isVuln: false, stack: null },
+            { type: "delay", ms: 600 },
+
+            // Fallback triggered
+            { depth: "4", type: "FALLBACK", details: "ExternalContract.fallback() | Received 100 ETH", gas: "38k", isVuln: false, isMoneyStolen: true, stack: ["Tx Origin (EOA)", "InvestmentFund.process...", "DAO.withdraw()", "ExternalContract.fallback()"] },
+            { type: "delay", ms: 1000 },
+            
+            // REENTRANCY (The Vulnerability Moment)
+            { depth: "5", type: "CALL", details: "DAO.withdraw()", gas: "30k", isVuln: true, stack: ["Tx Origin (EOA)", "InvestmentFund.process...", "DAO.withdraw()", "ExternalContract.fallback()", "DAO.withdraw()"] },
+            { type: "delay", ms: 600 },
+            
+            // Reading stale state again!
+            { depth: "6", type: "SLOAD", details: "balances[0x8f1...3c] -> 100 ETH", gas: "200", isVuln: false, stack: null },
+            { type: "delay", ms: 400 },
+            { depth: "6", type: "CALL", details: "msg.sender.call{value: 100 ETH}()", gas: "25k", isVuln: false, stack: null },
+            { type: "delay", ms: 600 },
+            
+            // Loop 2
+            { depth: "7", type: "FALLBACK", details: "ExternalContract.fallback() | Received 100 ETH", gas: "23k", isVuln: false, isMoneyStolen: true, stack: ["... (truncated)", "DAO.withdraw()", "ExternalContract.fallback()", "DAO.withdraw()", "ExternalContract.fallback()"] },
+            { type: "delay", ms: 1000 },
+            { depth: "8", type: "CALL", details: "DAO.withdraw()", gas: "18k", isVuln: true, stack: ["... (truncated)"] },
+            { type: "delay", ms: 600 },
+            { depth: "9", type: "SLOAD", details: "balances[0x8f1...3c] -> 100 ETH", gas: "200", isVuln: false, stack: null },
+            { type: "delay", ms: 400 },
+            { depth: "9", type: "CALL", details: "msg.sender.call{value: 100 ETH}()", gas: "14k", isVuln: false, stack: null },
+        ];
+
+        let currentIndex = 0;
+
+        function renderStack(stackArray) {
+            if (!stackArray) return;
+            stackContainer.innerHTML = '';
+            
+            stackArray.forEach((func, idx) => {
+                const el = document.createElement('div');
+                el.className = 'stack-frame';
+                el.innerHTML = `
+                    <div class="frame-depth">Depth ${idx}</div>
+                    <div class="frame-func">${func}</div>
+                `;
+                stackContainer.appendChild(el);
+            });
+            stackContainer.scrollTop = stackContainer.scrollHeight;
+        }
+
+        function createLogLine(item) {
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = `
+                <div class="depth">[0x0${item.depth}]</div>
+                <div class="type type-${item.type}">${item.type}</div>
+                <div class="details">${item.details}</div>
+                <div class="gas">${item.gas}</div>
+            `;
+            
+            line.addEventListener('click', () => {
+                if (hackFound) return;
+                isPaused = true;
+                checkAnswer(item.isVuln, line);
+            });
+
+            logContainer.appendChild(line);
+            
+            // Auto scroll only if not manually paused by the button
+            if (!isSimPaused) {
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            if (item.stack) {
+                renderStack(item.stack);
+            }
+
+            if (item.isMoneyStolen) {
+                stolenEth += 100;
+                const counter = document.getElementById('stolen-counter');
+                counter.innerText = stolenEth + ' ETH';
+                counter.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    counter.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        function checkAnswer(isCorrect, element) {
+            if (isCorrect) {
+                hackFound = true;
+                element.style.background = 'rgba(16, 185, 129, 0.2)';
+                element.style.borderColor = 'var(--success)';
+                
+                modal.className = 'modal success';
+                modalIcon.innerHTML = '🎯';
+                modalIcon.style.color = 'var(--success)';
+                modalTitle.innerText = "Правильно! Ви знайшли вразливість.";
+                modalDesc.innerHTML = "Саме тут атакуючий контракт у своїй <code>fallback</code>-функції викликав <code>DAO.withdraw()</code> <b>повторно</b>. Зверніть увагу: це сталося <b>до того</b>, як первісний виклик оновив змінні стану (баланс все ще 100 ETH). Це пряме порушення патерну Checks-Effects-Interactions.";
+                overlay.classList.add('active');
+            } else {
+                modal.className = 'modal error';
+                modalIcon.innerHTML = '✗';
+                modalIcon.style.color = 'var(--danger)';
+                modalTitle.innerText = "Це не те місце";
+                modalDesc.innerHTML = "Цей рядок дійсно виконується в рамках транзакції, але власне вразливістю є інший момент. Знайдіть місце, де функція <b>викликає сама себе ще до завершення першого виклику</b> (Reentrancy).";
+                overlay.classList.add('active');
+            }
+        }
+
+        function closeModal() {
+            overlay.classList.remove('active');
+            if (!hackFound) {
+                isPaused = false;
+                processNext();
+            }
+        }
+
+        function processNext() {
+            if (isPaused || hackFound || isSimPaused) return;
+            
+            if (currentIndex >= traceSequence.length) {
+                // Loop simulation
+                currentIndex = 0; 
+                const sep = document.createElement('div');
+                sep.style = "margin: 1rem 0; text-align: center; color: var(--text-muted);";
+                sep.innerText = "--- Вкладений реентрансі цикл продовжується ---";
+                logContainer.appendChild(sep);
+            }
+
+            const item = traceSequence[currentIndex];
+            currentIndex++;
+
+            if (item.type === 'delay') {
+                setTimeout(processNext, item.ms);
+            } else {
+                createLogLine(item);
+                processNext();
+            }
+        }
+
+        // Start
+        setTimeout(processNext, 1000);
+
+    </script>
+</body>
+</html>
