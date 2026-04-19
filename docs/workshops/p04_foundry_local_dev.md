@@ -1,179 +1,264 @@
-# Практикум p04. Foundry: локальне середовище розробки
+# Практикум p04. Foundry: Об'єктивна інженерна розробка смарт-контрактів
 
-**Мета:** Перейти від браузерного Remix IDE до професійного локального інструментарію. Навчитися створювати проєкт у Foundry, компілювати контракти, писати тести на Solidity, деплоїти через скрипти та працювати з форком реальної мережі.
+**Мета:** Перейти від візуальних браузерних IDE (Remix) до професійного локального інструментарію (Foundry). Засвоїти фундаментальні принципи DevOps у Web3: локальна EVM-симуляція, автоматизоване тестування інваріантів, фаззинг (fuzzing), імплементація контракту спостережуваності (gas profiling, state tracing).
 
 **Передумови:** Базове розуміння Solidity (практикуми p00–p01), термінал (командний рядок), встановлений [Git](https://git-scm.com/).
 
 ---
 
-## Чому Foundry, а не Remix?
+## Workshop Architecture: Від Концепції до Валідації
 
-| Критерій | Remix IDE | Foundry |
-| :--- | :--- | :--- |
-| **Середовище** | Браузер, нічого встановлювати | Локальне, потребує інсталяції |
-| **Тестування** | Ручне "клацання" кнопок | Автоматичні тести на Solidity |
-| **Швидкість** | Повільна компіляція великих проєктів | Блискавична (написаний на Rust) |
-| **CI/CD** | Неможливо | Легко інтегрується в pipeline |
-| **Форк мережі** | Ні | Так (`anvil --fork-url`) |
-| **Використання** | Навчання, прототипування | Production, аудити, хакатони |
-
-> [!IMPORTANT]
-> Remix — чудовий для перших кроків. Але у реальних проєктах, на хакатонах та при проходженні технічних інтерв'ю очікується знання Foundry або Hardhat.
+Відповідно до методів інженерної педагогіки (Pedagogical Scaffolding), цей воркшоп побудований за принципом переходу `Concept → Behavior → Edge-Cases → Verification/Tests`. Робота в ньому поділена на чотири логічні фази.
 
 ---
 
-## 1. Встановлення Foundry
+## Фаза 1: Інфраструктурний базис (Environment & Tooling)
 
-Foundry встановлюється через один скрипт `foundryup`:
+**Концепція:** Перехід від браузерного компілятора до локального (написаного на Rust) забезпечує швидкодію, детермінованість середовища та готовність до автоматизації CI/CD процесу.
 
-```bash
-# 1. Встановлення foundryup (менеджер версій Foundry)
-curl -L https://foundry.paradigm.xyz | bash
+### Завдання 1: Підготовка середовища та ініціалізація проєкту
 
-# 2. Перезавантажте термінал (або виконайте source ~/.bashrc)
-# 3. Встановлення останньої версії інструментів
-foundryup
-```
+1. **Встановлення.** Відкрийте термінал та завантажте інсталятор Foundry:
+   ```bash
+   curl -L https://foundry.paradigm.xyz | bash
+   ```
+2. **Оновлення змінних.** Перезавантажте термінал (або `source ~/.bashrc`) та встановіть бінарні файли:
+   ```bash
+   foundryup
+   ```
+   *Перевірте успішність: `forge --version`.*
+3. **Ініціалізація.** Створіть чистий стандартний проєкт з готовою структурою:
+   ```bash
+   forge init my-foundry-project
+   cd my-foundry-project
+   ```
 
-Після успішного встановлення у вас з'являться 4 інструменти:
-
-| Інструмент | Призначення |
-| :--- | :--- |
-| `forge` | Компіляція, тестування, деплой контрактів |
-| `cast` | Взаємодія з блокчейном з командного рядка (читання стану, виклик функцій) |
-| `anvil` | Локальна EVM-нода (аналог Remix VM, але у терміналі) |
-| `chisel` | Інтерактивний REPL для Solidity (виконання коду рядок за рядком) |
-
-**Перевірка:**
-```bash
-forge --version
-# forge 0.2.0 (або новіша)
-```
-
----
-
-## 2. Створення проєкту
-
-```bash
-# Створити новий проєкт
-forge init my-first-project
-cd my-first-project
-```
-
-Foundry створить таку структуру:
-
-```
-my-first-project/
-├── foundry.toml       # Конфігурація проєкту (версія компілятора, оптимізації)
-├── src/               # Ваші смарт-контракти (.sol)
-│   └── Counter.sol    # Приклад контракту
-├── test/              # Тести (теж на Solidity!)
-│   └── Counter.t.sol  # Тести для Counter
-├── script/            # Скрипти деплою
-│   └── Counter.s.sol  # Скрипт деплою Counter
-└── lib/               # Залежності (підмодулі Git)
-    └── forge-std/     # Стандартна бібліотека Foundry
-```
-
-> [!NOTE]
-> Зверніть увагу: тести у Foundry пишуться **на Solidity**, а не на JavaScript (як у Hardhat). Це означає, що ви тестуєте контракти тією ж мовою, якою їх написали.
-
----
-
-## 3. Завдання: Компіляція та запуск тестів
-
-### 3.1. Перегляд прикладу
-
-Відкрийте файл `src/Counter.sol`:
-
-```solidity
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
-
-contract Counter {
-    uint256 public number;
-
-    function setNumber(uint256 newNumber) public {
-        number = newNumber;
-    }
-
-    function increment() public {
-        number++;
-    }
-}
-```
-
-Та відповідний тест `test/Counter.t.sol`:
-
-```solidity
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
-
-import {Test, console} from "forge-std/Test.sol";
-import {Counter} from "../src/Counter.sol";
-
-contract CounterTest is Test {
-    Counter public counter;
-
-    // setUp() виконується ПЕРЕД кожним тестом (аналог beforeEach)
-    function setUp() public {
-        counter = new Counter();
-        counter.setNumber(0);
-    }
-
-    function test_Increment() public {
-        counter.increment();
-        assertEq(counter.number(), 1); // Перевірка: number == 1?
-    }
-
-    function testFuzz_SetNumber(uint256 x) public {
-        counter.setNumber(x);
-        assertEq(counter.number(), x); // Fuzz-тест: працює для БУДЬ-ЯКОГО x
-    }
-}
-```
-
-### 3.2. Компіляція
-
+### ✅ Verification (Базова перевірка)
+Виконайте компіляцію проєкту:
 ```bash
 forge build
 ```
-
-Якщо все добре, ви побачите:
-```
-[⠊] Compiling...
-[⠊] Compiling 24 files with solc 0.8.28
-[⠒] Solc 0.8.28 finished in 1.23s
-Compiler run successful!
-```
-
-### 3.3. Запуск тестів
-
-```bash
-forge test
-```
-
-Результат:
-```
-[⠊] Compiling...
-No files changed, compilation skipped
-
-Ran 2 tests for test/Counter.t.sol:CounterTest
-[PASS] testFuzz_SetNumber(uint256) (runs: 256, μ: 30803, ~: 31281)
-[PASS] test_Increment() (μ: 28379, ~: 28379)
-Suite result: ok. 2 passed; 0 failed; 0 skipped; finished in 8.23ms
-```
-
-> [!TIP]
-> **Fuzz-тестування** (`testFuzz_SetNumber`) — це коли Foundry автоматично генерує 256 випадкових значень для параметра `x` і перевіряє, що контракт працює коректно для кожного з них. У Remix такого зробити неможливо.
+Студент повинен переконатися, що процес закінчився успішно (`Compiler run successful!`), а бінарні артефакти (байткод та ABI) згенеровані та знаходяться у автоматично створеній теці `out/`.
 
 ---
 
-## 4. Завдання: Написання власного контракту та тестів
+## Фаза 2: Читання та мутація стану (Math-to-Code Symmetry)
 
-### 4.1. Створіть контракт
+**Концепція:** Важливо розрізняти природу операцій на блокчейні. Смарт-контракт — це не програма з інтерфейсом, а набір інструкцій у State Trie мережі, доступ до яких здійснюється через RPC-запити. Існує фундаментальна різниця між викликом (Call – безкоштовне читання) та транзакцією (Transaction – зміна стану).
 
-Створіть файл `src/Greeter.sol`:
+### Завдання 2: Взаємодія з мережею без UI
+
+1. **Локальна EVM.** У *новому вікні термінала* запустіть оптимізовану локальну EVM-ноду:
+   ```bash
+   anvil
+   ```
+   *Вона згенерує тестові приватні ключі та локальний RPC URL (`http://127.0.0.1:8545`).*
+2. **Деплой (Mutation).** Поверніться у перший термінал. Задеплойте базовий контракт `Counter.sol` у локальну мережу за допомогою скрипта (цей скрипт Foundry створив під час ініціалізації у теці `script/`):
+   ```bash
+   forge script script/Counter.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+   ```
+   *Зафіксуйте адресу контракту з консольного виводу (напр., `0x5FbDB2315678afecb367f032d93F642f64180aa3`).*
+
+### ✅ Verification (Об'єктивна взаємодія через Cast)
+Замість кнопок у додатку (як у Remix), взаємодійте зі станом контракту як інженер, використовуючи утиліту `cast`:
+
+1. **Читання стану (без газу):**
+   ```bash
+   cast call <АДРЕСА_КОНТРАКТУ> "number()"
+   ```
+2. **Зміна стану (транзакція з підписом):**
+   Збільште значення `number` на одиницю (оновлення State Trie):
+   ```bash
+   cast send <АДРЕСА_КОНТРАКТУ> "increment()" --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+   ```
+3. **Підтвердження:** Знову викличте `cast call`, аби переконатися, що значення `number()` змінилося.
+
+### 🔬 Deep Dive: Математика транзакції та ECDSA
+
+Ви щойно підписали транзакцію (дія `cast send`), але що саме відбулося "під капотом"? Блокчейн не розуміє паролів або сесій; він оперує виключно криптографічними доказами згідно з алгоритмом **ECDSA** (на кривій `secp256k1`).
+
+1. **Аналіз сирих (raw) даних транзакції:**
+   Використайте утиліту `cast`, аби розпакувати об'єкт транзакції, який мережа щойно обробила. Візьміть хеш транзакції (`transactionHash`) з виводу вашої попередньої команди `cast send` і виконайте:
+   ```bash
+   cast tx <ХЕШ_ТРАНЗАКЦІЇ>
+   ```
+2. **Параметри підпису (v, r, s):**
+   У виводі ви знайдете поля `v`, `r` та `s`. Це компоненти вашого електронного цифрового підпису:
+   - **$r$** та **$s$** — математичні значення, які доводять володіння приватним ключем для специфічного інформаційного пейлоаду (суми переказу, даних `increment()`, nonce тощо).
+   - **$v$** (Recovery ID) — вказівник на одну з двох можливих точок над віссю $x$ еліптичної кривої. Він потрібен для оптимізації математичних розрахунків EVM і запобігає транскордонним атакам відтворення (Replay Attacks, з урахуванням `Chain ID`).
+3. **Механіка перевірки (ecrecover):**
+   У блокчейні транзакція спочатку не містить поля `from` (хто відправив). На рівні віртуальної машини (та на рівні консенсусу ноди) відбувається операція **відновлення публічного ключа** на базі підпису:
+   - EVM бере хеш вмісту вашої транзакції ($h$) разом із $v, r, s$.
+   - Через функцію `ecrecover` вона алгебраїчно відновлює **публічний ключ** (Public Key).
+   - Хеш від цього публічного ключа (останні 20 байт) стає адресою відправника (`msg.sender`).
+   - Якщо ця отримана адреса має достатній баланс для оплати газу, транзакція береться в роботу; так EVM об'єктивно підтверджує повноваження.
+
+---
+
+## Фаза 3: Валідація та Спостережуваність (Observability Contract)
+
+**Концепція:** В Архітектурі децентралізованих систем (EVM) кожна інструкція (opcode) коштує грошей. Сліпе тестування є неприпустимим; розробник зобов'язаний розуміти структуру споживання газу своїм кодом.
+
+### Завдання 3: Аналіз трасування та газових витрат
+
+У стандартному проєкті Foundry вже є файл з тестом `test/Counter.t.sol`. Запустимо його не просто для того, щоб побачити "Pass", а щоб проаналізувати потік виконання:
+
+1. **Запуск Trace-режиму:**
+   ```bash
+   forge test -vvvv
+   ```
+   *Прапорці `-vvvv` (verbosity) розгортають кожну транзакцію в детальний дамп опкодів з їхніми газовими витратами.*
+2. **Профілювання витрат (Gas Profiler):**
+   Вимагаємо від компілятора згенерувати фінансову таблицю вартості функцій:
+   ```bash
+   forge test --gas-report
+   ```
+
+### ✅ Verification (Аналітика)
+Студент має зафіксувати у звіті свої спостереження з таблиці:
+- Скільки загалом газу коштує операція зміни стану (наприклад, дія `increment()` з її `SSTORE` опкодом).
+- Скільки газу коштує звичайна базова арифметика чи виділення пам'яті. 
+*Це дозволяє математично усвідомити різницю в ціні між збереженням даних на блокчейні та обчисленнями.*
+
+---
+
+## Фаза 4: Безпека та Крайові випадки (Edge-Cases & Fuzzing)
+
+**Концепція:** Класичне функціональне тестування на одному «щасливому» сценарії є неповноцінним. Справжній інженерний підхід вимагає побудови **Моделі загроз (Threat Model)** — формулювання інваріантів, які контракт *ніколи* не повинен порушувати, — та автоматичного пошуку вхідних даних, що ці інваріанти ламають.
+
+### Завдання 4: Виявлення прихованої вразливості через Fuzz-тест
+
+#### 4.1. Контракт із прихованою логічною помилкою
+
+Створіть файл `src/VulnerableVault.sol`. Цей контракт імітує спрощене сховище (Vault), де користувач може внести (`deposit`) та вивести (`withdraw`) кошти. Прочитайте код уважно — він містить **приховану архітектурну помилку**, яку неможливо помітити на одному ручному тесті:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+contract VulnerableVault {
+    mapping(address => uint256) public balances;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    /// @notice Вивести частину коштів зі сховища
+    /// @param amount Сума для виведення (у wei)
+    function withdraw(uint256 amount) external {
+        // ⚠️ Розробник "оптимізував" перевірку через unchecked-блок
+        unchecked {
+            balances[msg.sender] -= amount;
+        }
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+    }
+
+    function getBalance(address user) external view returns (uint256) {
+        return balances[user];
+    }
+}
+```
+
+> [!IMPORTANT]
+> **Завдання-детектив.** Перед тим як писати тести, побудуйте **Threat Model**. Сформулюйте фінансовий інваріант, який цей контракт *повинен* виконувати:
+>
+> **Інваріант:** *Баланс будь-якого користувача після виведення не може перевищувати баланс до виведення.* Іншими словами: `balances[user] (після) ≤ balances[user] (до)`.
+>
+> Тепер проаналізуйте: чи гарантує код цього контракту дотримання цього інваріанту для *будь-яких* вхідних значень `amount`?
+
+#### 4.2. Математика помилки (Integer Underflow)
+
+Ключова проблема прихована у блоці `unchecked { balances[msg.sender] -= amount; }`.
+
+Починаючи з Solidity 0.8.x, арифметичні операції за замовчуванням перевіряють переповнення і викидають revert. Але `unchecked` **вимикає** цю перевірку. Що відбувається математично, якщо `amount > balances[msg.sender]`?
+
+```text
+Приклад:
+  balances[Alice] = 1 ETH  (1 × 10¹⁸ wei)
+  amount          = 2 ETH  (2 × 10¹⁸ wei)
+
+  Стандартна арифметика (checked):
+    1 × 10¹⁸ − 2 × 10¹⁸ = −1 × 10¹⁸  → revert (від'ємне число неприпустиме для uint256)
+
+  unchecked-арифметика:
+    1 × 10¹⁸ − 2 × 10¹⁸ = 2²⁵⁶ − 10¹⁸
+                        ≈ 1.157 × 10⁷⁷ wei
+                        → баланс Alice стає АСТРОНОМІЧНИМ! 💥
+```
+
+Результат: `uint256` «обертається» (wraps around) через модулярну арифметику $\pmod{2^{256}}$. Користувач, який мав 1 ETH, тепер має баланс більший за все ETH, що існує.
+
+#### 4.3. Fuzz-тест: Автоматичний пошук Edge-Case
+
+Створіть файл `test/VulnerableVault.t.sol`:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+import {Test} from "forge-std/Test.sol";
+import {VulnerableVault} from "../src/VulnerableVault.sol";
+
+contract VulnerableVaultTest is Test {
+    VulnerableVault public vault;
+    address alice = makeAddr("alice");
+
+    function setUp() public {
+        vault = new VulnerableVault();
+        // Надаємо Alice стартові кошти для тестування
+        vm.deal(alice, 10 ether);
+    }
+
+    /// @notice Fuzz-тест, що перевіряє фінансовий інваріант:
+    ///         "після withdraw() баланс не може стати більшим, ніж до"
+    function testFuzz_WithdrawInvariant(uint256 depositAmt, uint256 withdrawAmt) public {
+        // Обмежуємо вхідні діапазони (bound) для реалістичності
+        depositAmt = bound(depositAmt, 0, 10 ether);
+        withdrawAmt = bound(withdrawAmt, 0, 10 ether);
+
+        // 1. Alice вносить кошти
+        vm.prank(alice);
+        vault.deposit{value: depositAmt}();
+        uint256 balanceBefore = vault.getBalance(alice);
+
+        // 2. Alice намагається вивести withdrawAmt
+        vm.prank(alice);
+        // Якщо у контракта недостатньо ETH для переказу — транзакція revert'неться,
+        // тому ми ловимо цей випадок
+        (bool success, ) = address(vault).call(
+            abi.encodeWithSignature("withdraw(uint256)", withdrawAmt)
+        );
+
+        if (success) {
+            uint256 balanceAfter = vault.getBalance(alice);
+            // Інваріант: баланс після ≤ баланс до
+            assertLe(
+                balanceAfter,
+                balanceBefore,
+                "INVARIANT VIOLATED: balance grew after withdrawal!"
+            );
+        }
+    }
+}
+```
+
+### ✅ Verification (Виявлення вразливості)
+Запустіть Fuzz-тест:
+```bash
+forge test --match-test testFuzz_WithdrawInvariant -vvv
+```
+
+**Очікуваний результат:** Foundry автоматично знайде комбінацію `(depositAmt, withdrawAmt)`, де `withdrawAmt > depositAmt`, при якій `balanceAfter > balanceBefore` — і тест впаде з повідомленням `INVARIANT VIOLATED`. У виводі ви побачите **контрприклад (Counterexample)** — конкретні значення, що зламали інваріант.
+
+> [!TIP]
+> **Ключовий висновок для студента:** Ви щойно автоматично довели вразливість, яку неможливо побачити при ручному тестуванні з "нормальними значеннями". Foundry перебрав сотні випадкових комбінацій і знайшов Edge-Case. У реальних аудитах саме цей підхід (побудова моделі загроз → формулювання інваріанту → фаззинг) виявляє вразливості, що призводять до втрат мільйонів доларів.
+
+---
+
+### Завдання 5: Симуляція загроз контролю доступу
+
+Другий вектор атак — порушення авторизації. Створіть контракт `src/Greeter.sol` з явним контролем доступу:
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -184,7 +269,6 @@ contract Greeter {
     address public owner;
 
     error Unauthorized();
-    error EmptyGreeting();
 
     constructor(string memory _greeting) {
         greeting = _greeting;
@@ -193,189 +277,59 @@ contract Greeter {
 
     function setGreeting(string memory _greeting) public {
         if (msg.sender != owner) revert Unauthorized();
-        if (bytes(_greeting).length == 0) revert EmptyGreeting();
         greeting = _greeting;
     }
 }
 ```
 
-### 4.2. Напишіть тести
-
-Створіть файл `test/Greeter.t.sol`:
+Створіть тест `test/Greeter.t.sol`, що моделює атаку від стороннього акаунта:
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Greeter} from "../src/Greeter.sol";
 
 contract GreeterTest is Test {
     Greeter public greeter;
-    address alice = makeAddr("alice"); // Створення тестової адреси
+    address attacker = address(0x1337);
 
     function setUp() public {
-        greeter = new Greeter("Hello, Foundry!");
+        greeter = new Greeter("Hello");
     }
 
-    function test_InitialGreeting() public view {
-        assertEq(greeter.greeting(), "Hello, Foundry!");
-    }
-
-    function test_OwnerCanChange() public {
-        greeter.setGreeting("New greeting");
-        assertEq(greeter.greeting(), "New greeting");
-    }
-
+    // vm.prank — "прикинутися" іншим акаунтом для наступного виклику
     function test_RevertIfNotOwner() public {
-        // vm.prank — "прикинутися" іншим акаунтом для наступного виклику
-        vm.prank(alice);
+        vm.prank(attacker);
         vm.expectRevert(Greeter.Unauthorized.selector);
         greeter.setGreeting("Hacked!");
     }
-
-    function test_RevertIfEmpty() public {
-        vm.expectRevert(Greeter.EmptyGreeting.selector);
-        greeter.setGreeting("");
-    }
 }
 ```
 
-### 4.3. Запустіть з деталізацією
-
+### ✅ Verification (Access Control)
 ```bash
-forge test -vvv
+forge test --match-path test/Greeter.t.sol -vvv
 ```
-
-Прапорець `-vvv` покаже детальний трейс кожного виклику (включно з revert-повідомленнями).
-
-**Ключові "читкоди" Foundry (cheatcodes):**
-
-| Cheatcode | Що робить |
-| :--- | :--- |
-| `vm.prank(addr)` | Наступний виклик буде від імені `addr` |
-| `vm.deal(addr, amount)` | Встановити баланс ETH для `addr` |
-| `vm.warp(timestamp)` | "Перемотати" час (block.timestamp) |
-| `vm.roll(blockNum)` | "Перемотати" номер блоку |
-| `vm.expectRevert()` | Очікувати revert у наступному виклику |
-| `makeAddr("name")` | Створити детерміновану тестову адресу |
+Студент повинен переконатися, що `vm.prank` об'єктивно підмінив `msg.sender`, а `vm.expectRevert` засвідчив коректне блокування несанкціонованого доступу.
 
 ---
 
-## 5. Локальна нода: Anvil
+## Питання та відповіді (Екзаменаційний блок)
 
-Anvil — це локальний блокчейн-емулятор (аналог Remix VM, але запущений як окремий процес).
+**П1.** Чому ми застосовуємо утиліту `cast` для викликів і чим `cast call` відрізняється від `cast send`?
 
-```bash
-# Запуск локальної ноди
-anvil
-```
-
-Ви побачите список з 10 тестових акаунтів (з приватними ключами) та адресу RPC:
-
-```
-Available Accounts
-==================
-(0) 0xf39Fd6e51...  (10000.000000000000000000 ETH)
-(1) 0x70997970C...  (10000.000000000000000000 ETH)
-...
-
-Listening on 127.0.0.1:8545
-```
-
-Тепер ви можете підключити до цієї ноди MetaMask (RPC URL: `http://127.0.0.1:8545`, Chain ID: `31337`) або використовувати `cast`:
-
-```bash
-# В іншому терміналі: перевірити баланс першого акаунта
-cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --rpc-url http://127.0.0.1:8545
-```
-
-### Форк реальної мережі
-
-Найпотужніша функція Anvil — можливість створити локальну копію справжньої мережі:
-
-```bash
-# Форк Ethereum mainnet (потрібен безкоштовний ключ з alchemy.com або infura.io)
-anvil --fork-url https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
-```
-
-Тепер ваша локальна нода має повний стан реального Ethereum (всі контракти, баланси, хістори). Ви можете, наприклад, викликати функції реального контракту Uniswap або перевірити баланс USDT відомой адреси — все локально, миттєво та безкоштовно.
+**В1.** `cast` дозволяє безпосередньо взаємодіяти з State Trie через RPC-вікно. `cast call` виконує локальне читання стану на ноді без газу. `cast send` формує криптографічно підписану транзакцію від приватного ключа, сплачує за газ та змінює стан мережі (State mutations).
 
 ---
 
-## 6. Скрипт деплою
+**П2.** Що відбувається під час виконання команди `forge test -vvvv` і чому ми називаємо це інструментом спостережуваності?
 
-Для автоматизації деплою використовуються Solidity-скрипти у папці `script/`.
-
-Створіть файл `script/DeployGreeter.s.sol`:
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
-
-import {Script, console} from "forge-std/Script.sol";
-import {Greeter} from "../src/Greeter.sol";
-
-contract DeployGreeter is Script {
-    function run() public {
-        // vm.startBroadcast() починає запис транзакцій для відправки
-        vm.startBroadcast();
-
-        Greeter greeter = new Greeter("Hello from Foundry!");
-        console.log("Greeter deployed at:", address(greeter));
-
-        vm.stopBroadcast();
-    }
-}
-```
-
-### Деплой у локальну ноду (Anvil)
-
-```bash
-# Переконайтесь, що anvil запущений в іншому терміналі
-forge script script/DeployGreeter.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-```
-
-> [!WARNING]
-> Приватний ключ вище — це стандартний тестовий ключ першого акаунта Anvil. **Ніколи** не використовуйте його для реальних мереж. Для Sepolia/mainnet використовуйте змінні середовища або keystore.
-
-### Деплой у тестнет Sepolia
-
-```bash
-# Використовуйте .env файл для зберігання секретів
-forge script script/DeployGreeter.s.sol \
-  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
-  --broadcast \
-  --verify \
-  --etherscan-api-key YOUR_ETHERSCAN_KEY
-```
-
-Прапорець `--verify` автоматично верифікує код контракту на Etherscan.
+**В2.** Прапорці `-vvvv` вмикають трасування (tracing) глибокого рівня виконання. Замість бінарного "Passed/Failed", система видає дерево виконання кожного опкоду (EVM instruction) та споживання газу для кожного кроку. Це дозволяє профілювати код (gas optimization).
 
 ---
 
-## Питання та відповіді (екзаменаційний блок)
+**П3.** Чим інваріантний фаззинг (Invariant Fuzzing) відрізняється від звичайного функціонального тесту?
 
-**П1.** Чим `forge test` принципово відрізняється від тестування у Remix?
-
-**В1.** У Remix тестування — це ручний процес: ви натискаєте кнопки, перевіряєте результат очима. `forge test` запускає автоматичні тести, які написані на Solidity. Foundry підтримує fuzz-тестування (автогенерація сотень випадкових вхідних даних), assertion-перевірки та cheatcodes для симуляції складних сценаріїв (зміна часу, підміна відправника).
-
----
-
-**П2.** Що таке `vm.prank` і навіщо він потрібен у тестах?
-
-**В2.** `vm.prank(address)` — це cheatcode Foundry, який змушує наступний виклик функції виконуватись від імені вказаної адреси. Це дозволяє тестувати контроль доступу: наприклад, перевірити, що функція `onlyOwner` справді відхиляє виклик від стороннього акаунта.
-
----
-
-**П3.** Для чого потрібен форк мережі (`anvil --fork-url`) і чому це неможливо у Remix?
-
-**В3.** Форк створює локальну копію реальної мережі Ethereum з актуальним станом (балансами, контрактами, ліквідністю DEX). Це дозволяє тестувати інтеграцію вашого контракту з реальними протоколами (наприклад, Uniswap або Aave) без витрат газу. У Remix VM стан порожній — там немає жодних існуючих контрактів чи балансів.
-
----
-
-## 🎓 Інженерний міні-кейс (на 1 бал)
-
-Ваш колега написав контракт з модифікатором `onlyOwner`. Він стверджує, що перевірив його вручну в Remix: "Я переключив акаунт і спробував викликати — отримав revert. Все працює!"
-
-**Питання:** Назвіть щонайменше 2 сценарії, які неможливо перевірити вручну в Remix, але легко покрити автоматичними тестами у Foundry.
+**В3.** Функціональний тест перевіряє один конкретний сценарій із зашитими значеннями (`assertEq(x, 42)`). Інваріантний фаззинг формулює правило, яке контракт *ніколи не повинен порушувати* (наприклад, «баланс після withdraw ≤ баланс до»), а Foundry автоматично генерує сотні випадкових комбінацій вхідних параметрів, шукаючи контрприклад, що зламає інваріант. Це дозволяє виявити Edge-Cases (переповнення, underflow, межові значення), які неможливо передбачити вручну.
