@@ -6,6 +6,10 @@
 
 ---
 
+**Навчальний посібник:** Детально про структуру кожної лекції та навігацію по вихідному коду на GitHub див. в окремому розділі **[Навчальний посібник: Структура курсу та навігація](./course_navigation.md)**.
+
+---
+
 ## Питання для обговорення
 
 1. Де "лежать" криптовалюти з точки зору звичайного користувача? Чи можна їх видалити або заблокувати?
@@ -180,16 +184,6 @@
 
 > **Індивідуальні завдання** — це не читання теорії. Кожне завдання вимагає підтвердження роботи (деплой контракту, транзакція, скрипт або рев'ю від AI агента).
 > Детальніше див. [інструкції до індивідуальних завдань на GitHub Pages](https://vplanto.github.io/blockchain/individual_tasks.html).
-
----
-
-## Рекомендована література
-
-Не читайте перекази блогерів. Читайте інженерну документацію.
-
-1.  **[Bitcoin Whitepaper (Satoshi Nakamoto)](https://bitcoin.org/bitcoin.pdf)** — всього 9 сторінок, які змінили світ. Обов'язково до прочитання.
-2.  **[Brewer's Conjecture Proof (Gilbert & Lynch, 2002)](https://users.ece.cmu.edu/~adrian/731-sp04/readings/GL-cap.pdf)** — математичне доведення CAP-теореми (Feasibility of Consistent, Available, Partition-Tolerant Web Services).
-3.  **[Ethereum Yellow Paper (Gavin Wood)](https://ethereum.github.io/yellowpaper/paper.pdf)** — математика віртуальної машини EVM.
 
 ---
 
