@@ -5,65 +5,103 @@
 
 Для магістрів прикладної математики розуміння блокчейну виходить далеко за межі "написання смарт-контрактів". Це виклик на перетині **теорії ігор, розподілених алгоритмів (BFT-консенсуси), криптографії та економіки**. У цьому курсі ми розберемо: як працюють системи, коли будь-який вузол може бути зламаний або діяти зловмисно; чому "код — це закон", і які мільйонні збитки несе одна помилка у смарт-контракті; та як математично гарантується безпека і цілісність глобального стану у Web3 середовищі. Інженер, який розуміє ці фундаментальні обмеження та механізми, здатен проєктувати дійсно відмовостійкі архітектури майбутнього.
 
-Ми побудували всі матеріали курсу (лекції та практикуми) так, щоб вони повністю закривали вимоги офіційної робочої програми. Детальніше про те, яка лекція відповідає якій темі, читайте у довіднику [Відповідність РП](./syllabus_mapping.md).
-*Для викладачів: Перед початком курсу рекомендується провести опитування за шаблоном [Очікування від курсу](./course_expectations_survey.md).*
+Ми побудували всі матеріали курсу (лекції та практикуми) так, щоб вони повністю закривали вимоги офіційної робочої програми.
+
+**Почніть з навігації:** [Структура курсу та навігація](./course_navigation.md) — єдиний шаблон кожної лекції, структура репозиторію та робота з кодом на GitHub.
+
+| Довідник | Призначення |
+| :--- | :--- |
+| [Відповідність РП](./syllabus_mapping.md) | Яка лекція та практикум закривають тему робочої програми |
+| [Рекомендована література](./recommended_literature.md) | Whitepapers, ERC/EIP-специфікації та інженерні першоджерела |
+| [Індивідуальні завдання](./individual_tasks.md) | Система оцінювання (100 балів) та 4 практичні роботи |
+| [Розширений зміст дисципліни](./rozshyrenyy_zmist_dystsypliny.md) | Стислий опис усіх 15 тем РП для друку (A4) |
+| [Очікування від курсу](./course_expectations_survey.md) | Шаблон опитування на старті *(для викладачів)* |
 
 ---
 
-## Лекційні матеріали (theory)
+## Рекомендований маршрут проходження
 
-Тут знаходяться основні текстові матеріали курсу. Читати в порядку зростання.
+Курс побудований за педагогічною моделлю **Concept → Behavior → Edge-Cases → Verification**. Лекції та практикуми чергуються — практикуми не «додаток», а обов'язкові кроки між лекційними блоками.
+
+| Фаза | Що вивчаємо | Матеріали (у порядку проходження) |
+| :--- | :--- | :--- |
+| **Concept** | CAP, BFT, основи | [Лекція 0](./00_intro_distributed_systems.md) → [Лекція 1](./01_distributed_systems_theory.md) + [симулятори](#інтерактивні-симуляції-simulators) |
+| **Behavior** | UTXO, EVM, state trie | [Лекція 2](./02_architecture_bitcoin_utxo.md) → [Лекція 3](./03_architecture_ethereum_evm.md) |
+| **Concept** | PoW, PoS, DAG | [Лекція 4](./04_consensus_algorithms.md) |
+| **Edge-Cases** | Solidity, зломи, CEI | [Лекція 5](./05_smart_contracts_solidity.md) → [p00](./workshops/p00_remix_solidity_basics.md) → [Case Studies](./case_studies.md) → [p01](./workshops/p01_security_checks_effects_interactions.md) |
+| **Verification** | Foundry, тести, fuzz | [Лекція 5.5](./05_1_modern_dapps_ecosystem.md) → [p04](./workshops/p04_foundry_local_dev.md) |
+| **Ecosystem & Scale** | dApps, L2, DeFi | [p02](./workshops/p02_nft_erc721.md), [p03](./workshops/p03_solidity_individual_tasks.md) *(паралельно з 5.5)* → [Лекція 6](./06_scaling_future.md) → [Лекція 7](./07_defi_financial_concepts.md) → [Завершення курсу](./course_closing_final_uk.md) |
+
+> **Повний лінійний маршрут:** 0 → 1 → 2 → 3 → 4 → 5 → **p00** → Case Studies → **p01** → 5.5 → **p02** → **p03** → **p04** → 6 → 7 → Завершення.
+
+---
+
+## Лекційні матеріали
+
+Основні текстові матеріали курсу. Читати в порядку зростання номера лекції.
 
 ### [Лекція 0: Вступ та Інженерна Реальність](./00_intro_distributed_systems.md)
+* **Фаза:** Concept
 * **Фокус:** Чому блокчейн — це повільна база даних?
-* **Ключові теми:** Піраміда абстракції, Visa vs Bitcoin, Система оцінювання.
+* **Ключові теми:** Піраміда абстракції, Visa vs Bitcoin, система оцінювання.
 
 ### [Лекція 1: Теорія розподілених систем](./01_distributed_systems_theory.md)
+* **Фаза:** Concept
 * **Фокус:** Фундаментальні обмеження (CAP) та еволюція алгоритмів.
-* **Ключові теми:** Paxos, Raft, pBFT, PoW, PoS.
+* **Ключові теми:** Paxos, Raft, pBFT; [інтерактивні симулятори](#інтерактивні-симуляції-simulators) консенсусу.
 
 ### [Лекція 2: Архітектура Bitcoin (UTXO)](./02_architecture_bitcoin_utxo.md)
+* **Фаза:** Behavior
 * **Фокус:** Модель UTXO, структура блоку, Merkle Tree, скрипт і підписи.
 
 ### [Лекція 3: Архітектура Ethereum (EVM)](./03_architecture_ethereum_evm.md)
+* **Фаза:** Behavior
 * **Фокус:** Модель рахунків, EVM, газ, state trie.
 
 ### [Лекція 4: Алгоритми консенсусу (PoW, PoS та альтернативні)](./04_consensus_algorithms.md)
+* **Фаза:** Concept
 * **Фокус:** PoW та PoS у деталях, finality, slashing, Nothing at Stake; альтернативні алгоритми (PoA, PoST, PoB, FPC, DPoS, PoR, SPECTRE) та DAG-консенсуси (Dexon, Block Lattice, BlockDAG тощо).
 
 ### [Лекція 5: Смарт-контракти та Solidity](./05_smart_contracts_solidity.md)
+* **Фаза:** Edge-Cases
 * **Фокус:** Читання коду Solidity, стан, газ, require, патерни безпеки. Приклади з папки [solidity](https://github.com/vplanto/blockchain/tree/main/solidity) та Remix IDE.
+* **Далі:** обов'язковий практикум [p00: Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md).
 
 ### [Розбір Кейсів (Case Studies)](./case_studies.md)
-* **Фокус:** Реальні приклади зломів і вразливостей (The DAO, Parity Wallet). Вивчається одразу після Лекції 5 як історичний контекст вразливостей смарт-контрактів.
-
-### [Практикум: Безпека та Інваріанти (p01)](./workshops/p01_security_checks_effects_interactions.md)
-* **Фокус:** Аналітика шкідливого коду (Honeypots), патерн Checks-Effects-Interactions (CEI) як захист стейт-машини, та "One-Click CTF" експлойти. Логічне продовження після Case Studies.
+* **Фаза:** Edge-Cases
+* **Фокус:** Реальні інциденти (The DAO, Parity Wallet, sleeping approval drain, Tornado Cash). Історичний контекст вразливостей смарт-контрактів — одразу після Лекції 5 та p00.
+* **Далі:** практикум [p01: Безпека та CEI](./workshops/p01_security_checks_effects_interactions.md).
 
 ### [Лекція 5.5: Сучасна екосистема (dApps)](./05_1_modern_dapps_ecosystem.md)
+* **Фаза:** Verification / Ecosystem
 * **Фокус:** Layer 2 (L2), Foundry, Proxy-патерни, інтеграція фронтенду (Provider/Signer) та стандарти токенів (ERC-20, ERC-721).
+* **Далі:** практикуми [p02](./workshops/p02_nft_erc721.md), [p03](./workshops/p03_solidity_individual_tasks.md), [p04](./workshops/p04_foundry_local_dev.md).
 
 ### [Лекція 6: Масштабування та майбутнє](./06_scaling_future.md)
-* **Фокус:** L2, rollups (optimistic та ZK), зв’язок безпеки з L1.
+* **Фаза:** Ecosystem & Scale
+* **Фокус:** L2, rollups (optimistic та ZK), зв’язок безпеки з L1, DAG-системи.
 
 ### [Лекція 7: Децентралізовані фінанси (DeFi)](./07_defi_financial_concepts.md)
+* **Фаза:** Ecosystem & Scale
 * **Фокус:** Економіка DeFi, пули ліквідності (AMM), арбітраж, кредитні плечі та флеш-кредити (Flash Loans).
 
 ### [Завершення курсу: фінальна крапка](./course_closing_final_uk.md)
-* **Фокус:** Підсумок траєкторії курсу (Concept → Behavior → Edge-Cases → Verification), звірка з очікуваннями з опитування, фінальне звернення для останньої зустрічі.
+* **Фокус:** Підсумок траєкторії курсу (Concept → Behavior → Edge-Cases → Verification), звірка з [очікуваннями з опитування](./course_expectations_survey.md), фінальне звернення для останньої зустрічі.
 * **Ключові теми:** Math-to-Code Symmetry, trustless-архітектура, DeFi/L2 у контексті всього курсу, відповідальне будівництво.
 
 ---
 
 ## Практикуми (Workshops)
 
-Практичний досвід: від перших кроків у Remix IDE до професійного локального середовища Foundry.
+Практичний досвід: від перших кроків у Remix IDE до професійного локального середовища Foundry. Кожен практикум прив'язаний до лекційного блоку з [маршруту](#рекомендований-маршрут-проходження) вище.
 
-1. [p00: Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) — деплой, HelloWorld, серія Voter (v1–v4), читання коду.
-2. [p01: Безпека (reentrancy, CEI)](./workshops/p01_security_checks_effects_interactions.md) — патерн Checks-Effects-Interactions, розбір Case Studies.
-3. [p02: Архітектура NFT (ERC-721)](./workshops/p02_nft_erc721.md) — генерація колекції, мінтинг, стандарти токенів.
-4. [p03: Самостійні завдання (15 кейсів)](./workshops/p03_solidity_individual_tasks.md) — збірка нетривіальних практичних завдань для реалізації в Remix IDE.
-5. [p04: Foundry — локальне середовище](./workshops/p04_foundry_local_dev.md) — встановлення Foundry, автоматичні тести на Solidity, fuzz-тестування, скрипти деплою, форк мережі.
+| # | Практикум | Коли проходити | Зміст |
+| :---: | :--- | :--- | :--- |
+| p00 | [Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) | Після [Лекції 5](./05_smart_contracts_solidity.md) | Деплой, HelloWorld, серія Voter (v1–v4), читання коду |
+| p01 | [Безпека (reentrancy, CEI)](./workshops/p01_security_checks_effects_interactions.md) | Після [Case Studies](./case_studies.md) | Honeypots, патерн Checks-Effects-Interactions, One-Click CTF |
+| p02 | [Архітектура NFT (ERC-721)](./workshops/p02_nft_erc721.md) | Під час [Лекції 5.5](./05_1_modern_dapps_ecosystem.md) | Генерація колекції, мінтинг, стандарти токенів |
+| p03 | [Самостійні завдання (15 кейсів)](./workshops/p03_solidity_individual_tasks.md) | Паралельно з p02 / 5.5 | Нетривіальні практичні завдання для реалізації в Remix IDE |
+| p04 | [Foundry — локальне середовище](./workshops/p04_foundry_local_dev.md) | Після [Лекції 5.5](./05_1_modern_dapps_ecosystem.md) | Автотести на Solidity, fuzz-тестування, скрипти деплою, форк мережі |
 
 ## Оцінювання та Індивідуальні завдання
 
@@ -98,7 +136,10 @@
 
 ### Корисні посилання
 
+* [Навчальний посібник: Структура курсу та навігація](./course_navigation.md)
+* [Рекомендована література (whitepapers, ERC/EIP)](./recommended_literature.md)
 * [Репозиторій курсу (blockchain)](https://github.com/vplanto/blockchain)
+* [Інтерактивна версія на GitHub Pages](https://vplanto.github.io/blockchain/)
 * [Приклади коду Solidity](https://github.com/vplanto/blockchain/tree/main/solidity) — контракти HelloWorld, Voter (v1–v4) для Remix.
 * [Remix IDE](https://remix.ethereum.org/) — онлайн-редактор для написання, компіляції та деплою смарт-контрактів (без встановлення).
 
