@@ -1,0 +1,24 @@
+title: "Побудова та Аналіз Децентралізованих Систем"
+description: "Blockchain engineering course for applied mathematics"
+lang: uk
+markdown: kramdown
+highlighter: rouge
+baseurl: "/blockchain"
+url: "https://vplanto.github.io"
+
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "default"
+
+exclude:
+  - exam_answers.md
+  - Gemfile
+  - Gemfile.lock

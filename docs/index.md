@@ -1,3 +1,8 @@
+---
+layout: default
+hub: true
+---
+
 # Побудова та Аналіз Децентралізованих Систем
 **Інженерний курс для магістрів прикладної математики.** *Від розподілених реєстрів до смарт-контрактів.*
 
@@ -8,6 +13,8 @@
 Ми побудували всі матеріали курсу (лекції та практикуми) так, щоб вони повністю закривали вимоги офіційної робочої програми.
 
 **Почніть з навігації:** [Структура курсу та навігація](./course_navigation.md) — єдиний шаблон кожної лекції, структура репозиторію та робота з кодом на GitHub.
+
+<div class="hub-block" markdown="1">
 
 | Довідник | Призначення |
 | :--- | :--- |
@@ -21,11 +28,15 @@
 | [Індивідуальні завдання](./individual_tasks.md) | Система оцінювання (100 балів) та 4 практичні роботи |
 | [Очікування від курсу](./course_expectations_survey.md) | Шаблон опитування на старті *(для викладачів)* |
 
+</div>
+
 ---
 
 ## Рекомендований маршрут проходження
 
 Курс побудований за педагогічною моделлю **Concept → Behavior → Edge-Cases → Verification**. Лекції та практикуми чергуються — практикуми не «додаток», а обов'язкові кроки між лекційними блоками.
+
+<div class="hub-block" markdown="1">
 
 | Фаза | Що вивчаємо | Матеріали (у порядку проходження) |
 | :--- | :--- | :--- |
@@ -37,6 +48,8 @@
 | **Ecosystem & Scale** | dApps, L2, DeFi | [p02](./workshops/p02_nft_erc721.md), [p03](./workshops/p03_solidity_individual_tasks.md) *(паралельно з 5.5)* → [Лекція 6](./06_scaling_future.md) → [Лекція 7](./07_defi_financial_concepts.md) → [Завершення курсу](./course_closing_final_uk.md) |
 
 > **Повний лінійний маршрут:** 0 → 1 → 2 → 3 → 4 → 5 → **p00** → Case Studies → **p01** → 5.5 → **p02** → **p03** → **p04** → 6 → 7 → Завершення.
+
+</div>
 
 ---
 
@@ -99,6 +112,8 @@
 
 Практичний досвід: від перших кроків у Remix IDE до професійного локального середовища Foundry. Кожен практикум прив'язаний до лекційного блоку з [маршруту](#рекомендований-маршрут-проходження) вище.
 
+<div class="hub-block" markdown="1">
+
 | # | Практикум | Коли проходити | Зміст |
 | :---: | :--- | :--- | :--- |
 | p00 | [Remix та основи Solidity](./workshops/p00_remix_solidity_basics.md) | Після [Лекції 5](./05_smart_contracts_solidity.md) | Деплой, HelloWorld, серія Voter (v1–v4), читання коду |
@@ -107,10 +122,16 @@
 | p03 | [Самостійні завдання (15 кейсів)](./workshops/p03_solidity_individual_tasks.md) | Паралельно з p02 / 5.5 | Нетривіальні практичні завдання для реалізації в Remix IDE |
 | p04 | [Foundry — локальне середовище](./workshops/p04_foundry_local_dev.md) | Після [Лекції 5.5](./05_1_modern_dapps_ecosystem.md) | Автотести на Solidity, fuzz-тестування, скрипти деплою, форк мережі |
 
+</div>
+
 ## Оцінювання та Індивідуальні завдання
+
+<div class="hub-block" markdown="1">
 
 Система оцінювання курсу складається з поточного контролю на лекціях, курсу з блокчейн-фінансів та криптограмотності, а також 4 індивідуальних практичних завдань.
 Детальний опис завдань та критеріїв оцінювання знаходяться тут: **[Індивідуальні завдання](./individual_tasks.md)**.
+
+</div>
 
 ---
 
@@ -119,26 +140,43 @@
 Візуалізації, які ми використовуємо на лекціях для демонстрації роботи алгоритмів.  
 *(Натисніть на назву, щоб відкрити симулятор у браузері)*
 
+<div class="hub-block" markdown="1">
+
 ### ⚔️ Головна Проблема
+
 * **[Проблема Візантійських Генералів](./consensus/byzantine_generals.html)** — візуалізація $O(N^2)$ трафіку та неможливості консенсусу при наявності зрадників.
 
+</div>
+
+<div class="hub-block" markdown="1">
+
 ### Клас A: CFT (Хмарні Системи)
+
 *Алгоритми для закритих периметрів (Google, AWS, Kubernetes).*
 
 1.  **[Paxos](./consensus/non-byzantine-algos/paxos.html)** — Академічний стандарт. Збір кворуму в умовах часткових відмов.
 2.  **[Raft](./consensus/non-byzantine-algos/raft.html)** — Consensus via Strong Leader. Рандомізовані таймери.
 3.  **[Viewstamped Replication](./consensus/non-byzantine-algos/viewstamped_replication.html)** — Детермінована ротація лідера ($Round-Robin$).
 
+</div>
+
+<div class="hub-block" markdown="1">
+
 ### Клас B: BFT (Блокчейн)
+
 *Алгоритми для ворожого середовища (Public Internet).*
 
 1.  **[pBFT](./consensus/byzantine_algos/pbft.html)** — Класичний BFT. Стійкість до 33% зрадників.
 2.  **[Proof of Work](./consensus/byzantine_algos/pow.html)** — Bitcoin. Захист енергією (Mining & Hashing).
 3.  **[Proof of Stake](./consensus/byzantine_algos/pos.html)** — Ethereum. Захист капіталом (Staking & Slashing).
 
+</div>
+
 ---
 
 ### Корисні посилання
+
+<div class="hub-block" markdown="1">
 
 * [Навчальний посібник: Структура курсу та навігація](./course_navigation.md)
 * [Рекомендована література (whitepapers, ERC/EIP)](./recommended_literature.md)
@@ -146,6 +184,8 @@
 * [Інтерактивна версія на GitHub Pages](https://vplanto.github.io/blockchain/)
 * [Приклади коду Solidity](https://github.com/vplanto/blockchain/tree/main/solidity) — контракти HelloWorld, Voter (v1–v4) для Remix.
 * [Remix IDE](https://remix.ethereum.org/) — онлайн-редактор для написання, компіляції та деплою смарт-контрактів (без встановлення).
+
+</div>
 
 ---
 
