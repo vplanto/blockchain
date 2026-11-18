@@ -86,7 +86,7 @@ hub: true
 
 ### [Розбір Кейсів (Case Studies)](./case_studies.md)
 * **Фаза:** Edge-Cases
-* **Фокус:** Реальні інциденти (The DAO, Parity Wallet, sleeping approval drain, Tornado Cash). Історичний контекст вразливостей смарт-контрактів — одразу після Лекції 5 та p00.
+* **Фокус:** Реальні інциденти (The DAO, Parity Wallet, sleeping approval drain, Tornado Cash, Liquid peg-out). Історичний контекст вразливостей смарт-контрактів — одразу після Лекції 5 та p00.
 * **Далі:** практикум [p01: Безпека та CEI](./workshops/p01_security_checks_effects_interactions.md).
 
 ### [Лекція 5.5: Сучасна екосистема (dApps)](./05_1_modern_dapps_ecosystem.md)
